@@ -1,0 +1,123 @@
+# ============================================================================
+# Compliance Advisory Copilot — local dev stack
+#
+#   docker compose up -d db redis minio     # infra only (recommended for dev)
+#   docker compose up --build               # full stack (api + worker + web)
+#
+# For development you typically run only the infra here and run the FastAPI
+# app + ARQ worker + Next.js on the host for fast reloads.
+# ============================================================================
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: cac-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cac}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cac_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cac}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cac} -d ${POSTGRES_DB:-cac}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: cac-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: cac-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the bucket on startup, then exits.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin};
+      mc mb --ignore-existing local/${S3_BUCKET:-circulars};
+      echo 'bucket ready';
+      "
+
+  # ---- Application services (optional in dev; enable with --profile app) ----
+  api:
+    build:
+      context: ./apps/api
+    container_name: cac-api
+    profiles: ["app"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    ports:
+      - "${API_PORT:-8000}:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build:
+      context: ./apps/api
+    container_name: cac-worker
+    profiles: ["app"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: ["arq", "app.worker.settings.WorkerSettings"]
+
+  web:
+    build:
+      context: ./apps/web
+    container_name: cac-web
+    profiles: ["app"]
+    depends_on:
+      - api
+    ports:
+      - "3000:80"   # nginx serves the built React app
+
+volumes:
+  db_data:
+  redis_data:
+  minio_data:
