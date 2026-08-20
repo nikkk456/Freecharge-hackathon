@@ -53,9 +53,9 @@ Hackathon/
             └── App.tsx       # router shell
 ```
 
-## Quick start (Windows / PowerShell)
+## First-time setup (one-time)
 
-Prereqs: **Docker Desktop**, **Python 3.12+**, **Node 20+**.
+Prereqs: **Docker Desktop**, **Python 3.12+**, **Node 20+**. Do this **once**:
 
 ```powershell
 # 0. env
@@ -70,19 +70,65 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e .
 python -m scripts.seed              # creates schema + demo users
 
-uvicorn app.main:app --reload       # API at http://localhost:8000  (docs at /docs)
-# (optional, in another terminal, once you add worker tasks)
-# arq app.worker.settings.WorkerSettings
-
-# 3. frontend (another terminal)
-cd apps\web
+# 3. frontend
+cd ..\web
 Copy-Item .env.example .env
 npm install
-npm run dev                         # http://localhost:3000
 ```
 
-Open **http://localhost:3000** — the landing page pings the backend `/health` to confirm
-everything is wired. That's the whole scaffold; build features from here.
+## Running the project day-to-day
+
+Once set up, there are three things to run: **infra (Docker), the API, and the web app.**
+
+### The one command
+
+From the project root:
+
+```powershell
+.\dev.ps1
+```
+
+This starts the Docker infra, then opens the API and web app each in their own window.
+Then open **http://localhost:3000**.
+
+> First time only, if PowerShell blocks the script, run once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### Or manually (3 terminals)
+
+```powershell
+# Terminal 1 — infra (leave running)
+docker compose up -d db redis minio minio-init
+
+# Terminal 2 — API
+cd apps\api
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+# (optional, once you add worker tasks, in its own terminal)
+# arq app.worker.settings.WorkerSettings
+
+# Terminal 3 — web
+cd apps\web
+npm run dev
+```
+
+- App → **http://localhost:3000** (landing page pings `/health` to confirm the wiring)
+- API docs → **http://localhost:8000/docs**
+- MinIO console → **http://localhost:9001** (`minioadmin` / `minioadmin`)
+
+### Stopping
+
+Close the API/web windows (Ctrl+C in each), then `docker compose stop` for infra.
+Your data survives — next time just run `.\dev.ps1` again.
+
+### What you do NOT repeat on a normal start
+
+`python -m venv`, `pip install -e .`, `npm install`, and `python -m scripts.seed` are
+one-time. Only re-run **seed** if you wipe the database (see below).
+
+> **Docker data note:** `docker compose stop` keeps your DB data; `docker compose down -v`
+> **deletes** it — after that you must run `python -m scripts.seed` again to recreate the
+> schema + demo users.
 
 ### Demo users (seeded, for when you build auth)
 
