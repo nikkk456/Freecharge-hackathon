@@ -19,7 +19,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     # --- Auth plumbing ---
     "pyjwt>=2.9",
-    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.2",
     # --- Async worker infra ---
     "arq>=0.26",
     "redis>=5.2",
