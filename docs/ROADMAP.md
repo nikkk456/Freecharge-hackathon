@@ -18,9 +18,10 @@ The vertical slice that must work start to finish:
 Nobody thinks it's hallucinating.
 
 **Status checklist**
-- [ ] docker infra up (Postgres+pgvector, Redis, MinIO)
-- [ ] DB schema + migrations
-- [ ] Upload + store PDF + parse to text
+- [x] docker infra up (Postgres+pgvector, Redis, MinIO)
+- [x] DB schema (via `scripts/seed.py` `create_all`; Alembic migrations deferred)
+- [x] Foundation layer seeded + exposed: 18 functions, 36 controls, 31 KCIs
+- [x] Upload + store PDF + parse to text (pdfplumber; per-page char offsets in `page_map`)
 - [ ] Chunk with char offsets + embed + store vectors
 - [ ] LLM provider abstraction (LiteLLM) + structured analysis prompt
 - [ ] Citation grounding + verification

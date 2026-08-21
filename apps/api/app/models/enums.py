@@ -71,6 +71,13 @@ class KciFrequency(str, enum.Enum):
     QUARTERLY = "QUARTERLY"
 
 
+class KciStatus(str, enum.Enum):
+    """RAG health of a KCI against its target — how the control library reads today."""
+    GREEN = "green"
+    AMBER = "amber"
+    RED = "red"
+
+
 class SourceSystem(str, enum.Enum):
     CAMS = "CAMS"
     GCM = "GCM"

@@ -1,0 +1,250 @@
+[
+  {
+    "kci_id": "K-001",
+    "kci_name": "KFS issuance rate",
+    "linked_control": "C-001",
+    "target": "100% of loans",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-002",
+    "kci_name": "LSP due-diligence coverage",
+    "linked_control": "C-002",
+    "target": "100% of active LSPs",
+    "current_value": "92%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-003",
+    "kci_name": "Cooling-off honoured rate",
+    "linked_control": "C-003",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-004",
+    "kci_name": "Direct-disbursal compliance",
+    "linked_control": "C-004",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-005",
+    "kci_name": "DLG exposure vs cap",
+    "linked_control": "C-005",
+    "target": "<=5%",
+    "current_value": "4.1%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-006",
+    "kci_name": "Recovery calls within window",
+    "linked_control": "C-006",
+    "target": ">=99%",
+    "current_value": "96.3%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-007",
+    "kci_name": "Grievance TAT breach rate",
+    "linked_control": "C-007",
+    "target": "<1%",
+    "current_value": "3.2%",
+    "status": "red"
+  },
+  {
+    "kci_id": "K-008",
+    "kci_name": "DLA consent capture rate",
+    "linked_control": "C-008",
+    "target": "100%",
+    "current_value": "99.1%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-009",
+    "kci_name": "CDD completion at onboarding",
+    "linked_control": "C-009",
+    "target": "100%",
+    "current_value": "99.8%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-010",
+    "kci_name": "V-CIP rejection/review rate",
+    "linked_control": "C-010",
+    "target": "reviewed 100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-012",
+    "kci_name": "Customers risk-categorised",
+    "linked_control": "C-012",
+    "target": "100%",
+    "current_value": "98.5%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-013",
+    "kci_name": "Sanctions screening coverage",
+    "linked_control": "C-013",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-014",
+    "kci_name": "STR filed within timeline",
+    "linked_control": "C-014",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-015",
+    "kci_name": "Wallet load-limit breaches",
+    "linked_control": "C-015",
+    "target": "0",
+    "current_value": "2",
+    "status": "red"
+  },
+  {
+    "kci_id": "K-016",
+    "kci_name": "Nodal reconciliation breaks",
+    "linked_control": "C-016",
+    "target": "0 open >T+1",
+    "current_value": "1",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-017",
+    "kci_name": "UPI auto-reversal within TAT",
+    "linked_control": "C-017",
+    "target": ">=99%",
+    "current_value": "97.5%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-018",
+    "kci_name": "Failed-txn compensation paid",
+    "linked_control": "C-018",
+    "target": "100% of eligible",
+    "current_value": "94%",
+    "status": "red"
+  },
+  {
+    "kci_id": "K-019",
+    "kci_name": "Merchant KYC completeness",
+    "linked_control": "C-019",
+    "target": "100%",
+    "current_value": "99.4%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-020",
+    "kci_name": "Chargeback SLA adherence",
+    "linked_control": "C-020",
+    "target": ">=98%",
+    "current_value": "98.7%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-022",
+    "kci_name": "Data localisation exceptions",
+    "linked_control": "C-022",
+    "target": "0",
+    "current_value": "0",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-023",
+    "kci_name": "Purpose-limitation exceptions",
+    "linked_control": "C-023",
+    "target": "0",
+    "current_value": "3",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-025",
+    "kci_name": "Privileged-access reviews done",
+    "linked_control": "C-025",
+    "target": "100% quarterly",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-026",
+    "kci_name": "VAPT findings closed on time",
+    "linked_control": "C-026",
+    "target": ">=95%",
+    "current_value": "88%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-027",
+    "kci_name": "Cyber incidents reported <6h",
+    "linked_control": "C-027",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-029",
+    "kci_name": "Returns filed on time",
+    "linked_control": "C-029",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-030",
+    "kci_name": "Format changes done pre-deadline",
+    "linked_control": "C-030",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-031",
+    "kci_name": "Outsourcing contracts compliant",
+    "linked_control": "C-031",
+    "target": "100%",
+    "current_value": "90%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-032",
+    "kci_name": "Vendor risk assessments current",
+    "linked_control": "C-032",
+    "target": "100%",
+    "current_value": "85%",
+    "status": "red"
+  },
+  {
+    "kci_id": "K-033",
+    "kci_name": "Fraud alert triage within SLA",
+    "linked_control": "C-033",
+    "target": ">=95%",
+    "current_value": "93%",
+    "status": "amber"
+  },
+  {
+    "kci_id": "K-034",
+    "kci_name": "Frauds reported within timeline",
+    "linked_control": "C-034",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-036",
+    "kci_name": "Penal-charge disclosure accuracy",
+    "linked_control": "C-036",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  }
+]

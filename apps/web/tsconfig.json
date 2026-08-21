@@ -16,7 +16,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
+    // No `baseUrl`: it is deprecated in TS 5.9 and removed in TS 7. With
+    // moduleResolution "bundler", `paths` resolves relative to this file, so the
+    // alias works without it. Vite has the matching alias in vite.config.ts.
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]

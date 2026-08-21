@@ -53,11 +53,12 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
 
     # ---- LLM (provider-agnostic via LiteLLM) ----
-    llm_provider: str = "openai"
-    llm_model: str = "openai/gpt-4o-mini"
+    llm_provider: str = "gemini"
+    llm_model: str = "gemini/gemini-3.7-flash"
     llm_temperature: float = 0.0
     llm_max_tokens: int = 4096
 
+    gemini_api_key: str | None = None
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     azure_api_key: str | None = None
@@ -70,6 +71,12 @@ class Settings(BaseSettings):
     use_local_embeddings: bool = False
     local_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     local_embedding_dim: int = 384
+
+    # ---- PDF ingestion ----
+    max_upload_mb: int = 25
+    # A text-layer PDF this short is almost certainly a scan; we reject it with a
+    # clear message rather than handing an empty document to the model.
+    min_extracted_chars: int = 200
 
     # ---- OCR ----
     ocr_enabled: bool = False

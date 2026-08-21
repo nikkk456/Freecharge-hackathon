@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from app.modules.circulars.router import router as circulars_router
+from app.modules.library.router import router as library_router
+
 api_router = APIRouter(prefix="/api/v1")
 
 # Feature routers get included here as you build each module.
+api_router.include_router(library_router)
+api_router.include_router(circulars_router)

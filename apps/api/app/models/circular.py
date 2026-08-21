@@ -5,6 +5,7 @@ from datetime import date
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Date, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +25,13 @@ class Circular(UUIDPkMixin, TimestampMixin, Base):
     issued_date: Mapped[date | None] = mapped_column(Date)
     raw_text: Mapped[str | None] = mapped_column(Text)
     pdf_object_key: Mapped[str | None] = mapped_column(String(1024))
+    page_count: Mapped[int | None] = mapped_column(Integer)
+    # [{page, char_start, char_end}] over `raw_text`. Lets a citation offset be
+    # resolved back to a page number — "this claim came from page 9" — without
+    # re-parsing the PDF.
+    page_map: Mapped[list | None] = mapped_column(JSONB)
+    # Why parsing failed, shown to the human instead of a silent FAILED status.
+    parse_error: Mapped[str | None] = mapped_column(Text)
     status: Mapped[CircularStatus] = mapped_column(
         Enum(CircularStatus, name="circular_status"),
         default=CircularStatus.UPLOADED,
@@ -66,6 +74,9 @@ class Function(UUIDPkMixin, TimestampMixin, Base):
 
     __tablename__ = "functions"
 
+    # Business code from the seed library, e.g. "F03". Stable across reseeds, so
+    # prompts and fixtures can refer to a function without knowing its UUID.
+    code: Mapped[str] = mapped_column(String(16), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 

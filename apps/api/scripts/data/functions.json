@@ -1,0 +1,92 @@
+[
+  {
+    "id": "F01",
+    "name": "Prepaid Instruments (Wallet) Ops",
+    "description": "Issuance and operation of PPI wallets, load/reload, escrow settlement."
+  },
+  {
+    "id": "F02",
+    "name": "UPI Operations",
+    "description": "UPI transaction processing, PSP/TPAP obligations, failed-txn handling."
+  },
+  {
+    "id": "F03",
+    "name": "Digital Lending (BNPL)",
+    "description": "Sourcing and servicing of digital credit, LSP/DLA oversight, disbursal."
+  },
+  {
+    "id": "F04",
+    "name": "Cards Operations",
+    "description": "Prepaid and credit card issuance, network and chargeback compliance."
+  },
+  {
+    "id": "F05",
+    "name": "Merchant & Customer Onboarding (KYC)",
+    "description": "CDD, V-CIP, merchant due diligence and risk categorisation at onboarding."
+  },
+  {
+    "id": "F06",
+    "name": "Collections & Recovery",
+    "description": "Repayment follow-up, recovery agent conduct and call-time governance."
+  },
+  {
+    "id": "F07",
+    "name": "Customer Grievance & Nodal",
+    "description": "Complaint handling, ombudsman liaison, grievance TAT tracking."
+  },
+  {
+    "id": "F08",
+    "name": "IT & Cyber Security",
+    "description": "Infra security, incident response, VAPT, DR/BCP."
+  },
+  {
+    "id": "F09",
+    "name": "Information Security Governance",
+    "description": "ISMS, access control, security policy and least-privilege enforcement."
+  },
+  {
+    "id": "F10",
+    "name": "Data Privacy & Governance",
+    "description": "Data localisation, consent, retention, purpose limitation, DPDP readiness."
+  },
+  {
+    "id": "F11",
+    "name": "Regulatory Reporting",
+    "description": "Returns and filings to RBI/FIU, reporting formats and timeliness."
+  },
+  {
+    "id": "F12",
+    "name": "Fraud Risk Management",
+    "description": "Transaction fraud monitoring, detection rules and fraud reporting."
+  },
+  {
+    "id": "F13",
+    "name": "AML & Transaction Monitoring",
+    "description": "STR/CTR, sanctions screening, risk categorisation, PMLA obligations."
+  },
+  {
+    "id": "F14",
+    "name": "Treasury & Nodal Account",
+    "description": "Escrow/nodal account management, balance reconciliation, settlement."
+  },
+  {
+    "id": "F15",
+    "name": "Outsourcing & Vendor Risk",
+    "description": "Third-party/LSP outsourcing governance, agreements and periodic review."
+  },
+  {
+    "id": "F16",
+    "name": "Product & Compliance",
+    "description": "Product approval, regulatory change management, pricing/charge disclosure."
+  },
+  {
+    "id": "F17",
+    "name": "Internal Audit",
+    "description": "Independent assurance and periodic control testing."
+  },
+  {
+    "id": "F18",
+    "name": "Marketing & Communications",
+    "description": "Customer communications, advertising and promotional messaging."
+  }
+]

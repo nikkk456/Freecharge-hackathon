@@ -25,6 +25,13 @@ dependencies = [
     "redis>=5.2",
     # --- Object storage ---
     "boto3>=1.35",
+    # --- PDF text extraction ---
+    # pdfplumber (MIT, pure Python via pdfminer.six). Chosen over PyMuPDF, which is
+    # AGPL-3.0 and would need a paid Artifex licence to ship inside a bank; and over
+    # pypdf, which gives no per-character geometry. We need that geometry to map a
+    # citation's character offset back to a page — the Stage 3 "show me the source
+    # line" moment.
+    "pdfplumber>=0.11",
     # --- Logging ---
     "structlog>=24.4",
 ]

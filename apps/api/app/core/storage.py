@@ -44,6 +44,10 @@ def get_object(key: str) -> bytes:
     return _client().get_object(Bucket=settings.s3_bucket, Key=key)["Body"].read()
 
 
+def delete_object(key: str) -> None:
+    _client().delete_object(Bucket=settings.s3_bucket, Key=key)
+
+
 def presigned_url(key: str, expires: int = 3600) -> str:
     return _client().generate_presigned_url(
         "get_object", Params={"Bucket": settings.s3_bucket, "Key": key}, ExpiresIn=expires

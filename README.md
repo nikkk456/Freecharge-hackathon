@@ -3,9 +3,10 @@
 > **FreeCharge Hackathon** — *Categorisation of Risk Rating of Circulars, closure of action
 > items, and RCM creation.*
 
-**This repository is a project scaffold.** The structure, infrastructure, configuration,
-and the full database data model are in place. **No features are implemented yet** — feature
-logic will be added deliberately, when and how the team decides. See the design and plan in
+**Stages 0–1 complete.** Infrastructure, the full data model, the **foundation layer**
+(18 functions · 36 controls · 31 KCIs), and **circular ingestion** — upload a PDF, get its
+text extracted and stored with per-page character offsets. The AI pipeline is next.
+See the design and plan in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) ·
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -44,12 +45,15 @@ Hackathon/
     │   │   ├── api/router.py # empty /api/v1 aggregator — plug routers in here
     │   │   └── main.py       # FastAPI entrypoint (health + empty router)
     │   ├── alembic/          # migrations
-    │   ├── scripts/seed.py   # creates schema + demo users (no feature data)
+    │   ├── scripts/
+    │   │   ├── data/*.json   # foundation seed: functions, controls, kcis
+    │   │   └── seed.py       # schema + demo users + foundation data
     │   └── tests/            # scaffold sanity test
-    └── web/                  # React + Vite SPA (bare shell)
+    └── web/                  # React + Vite SPA
         └── src/
-            ├── lib/api.ts    # generic API client (health check only)
-            ├── pages/Home.tsx# placeholder landing page
+            ├── lib/api.ts    # typed API client
+            ├── components/   # StatTile, RagBar, StatusChip
+            ├── pages/Home.tsx# foundation dashboard (live DB data)
             └── App.tsx       # router shell
 ```
 
@@ -130,6 +134,18 @@ one-time. Only re-run **seed** if you wipe the database (see below).
 > **deletes** it — after that you must run `python -m scripts.seed` again to recreate the
 > schema + demo users.
 
+### Seeding
+
+```powershell
+python -m scripts.seed            # create schema if absent, then upsert all seed data
+python -m scripts.seed --reset    # DROP the schema and rebuild from scratch
+```
+
+Seed data lives in `apps/api/scripts/data/` — **edit the JSON, re-run seed**. Rows are
+matched on their business code (`F01` / `C-001` / `K-001`), so re-running updates in place
+instead of duplicating, and every foreign key is validated before anything is written.
+Use `--reset` whenever a model changes shape (there are no Alembic migrations yet).
+
 ### Demo users (seeded, for when you build auth)
 
 | email | password | role |
@@ -144,7 +160,17 @@ one-time. Only re-run **seed** if you wipe the database (see below).
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | liveness check |
-| GET | `/docs` | interactive OpenAPI docs (empty until you add routers) |
+| GET | `/api/v1/library/stats` | counts + KCI RAG mix — proves API→DB→seed data is wired |
+| GET | `/api/v1/library/functions` | the 18 impacted departments |
+| GET | `/api/v1/library/controls` | the 36 controls, each with owner function + KCI |
+| GET | `/api/v1/library/kcis` | the 31 indicators with target, current value, RAG status |
+| POST | `/api/v1/circulars` | upload a PDF → stored in MinIO, text extracted, row created |
+| GET | `/api/v1/circulars` | list uploaded circulars (no `raw_text`) |
+| GET | `/api/v1/circulars/{id}` | full detail incl. `raw_text` + `page_map` |
+| PATCH | `/api/v1/circulars/{id}` | human override of ref no / title / issued date |
+| GET | `/api/v1/circulars/{id}/pdf` | redirect to a presigned URL for the original PDF |
+| DELETE | `/api/v1/circulars/{id}` | remove the circular and its stored PDF |
+| GET | `/docs` | interactive OpenAPI docs |
 
 ## Tests
 

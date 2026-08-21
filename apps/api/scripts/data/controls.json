@@ -1,0 +1,254 @@
+[
+  {
+    "control_id": "C-001",
+    "control_name": "Key Fact Statement (KFS) disclosure at sanction",
+    "description": "KFS with APR issued to every digital-loan borrower before disbursal.",
+    "owner_function": "F03",
+    "linked_kci": "K-001"
+  },
+  {
+    "control_id": "C-002",
+    "control_name": "DLA / LSP due-diligence & onboarding",
+    "description": "Documented due diligence on every Lending Service Provider and Digital Lending App.",
+    "owner_function": "F15",
+    "linked_kci": "K-002"
+  },
+  {
+    "control_id": "C-003",
+    "control_name": "Cooling-off / look-up period enforcement",
+    "description": "Borrower can exit within the cooling-off window without penalty (only APR).",
+    "owner_function": "F03",
+    "linked_kci": "K-003"
+  },
+  {
+    "control_id": "C-004",
+    "control_name": "Direct disbursal to borrower account",
+    "description": "Loan funds move bank-to-borrower with no LSP pass-through / pool account.",
+    "owner_function": "F03",
+    "linked_kci": "K-004"
+  },
+  {
+    "control_id": "C-005",
+    "control_name": "Default Loss Guarantee (DLG) cap monitoring",
+    "description": "DLG exposure kept within the 5% regulatory cap per portfolio.",
+    "owner_function": "F03",
+    "linked_kci": "K-005"
+  },
+  {
+    "control_id": "C-006",
+    "control_name": "Recovery agent code-of-conduct & call timing",
+    "description": "Recovery calls only 08:00-19:00, agents trained and logged.",
+    "owner_function": "F06",
+    "linked_kci": "K-006"
+  },
+  {
+    "control_id": "C-007",
+    "control_name": "Grievance redressal TAT & Nodal officer",
+    "description": "Complaints resolved within regulatory TAT; GRO/Nodal officer published.",
+    "owner_function": "F07",
+    "linked_kci": "K-007"
+  },
+  {
+    "control_id": "C-008",
+    "control_name": "Consent & data minimisation in DLA",
+    "description": "DLA collects only need-based data with explicit, auditable consent.",
+    "owner_function": "F10",
+    "linked_kci": "K-008"
+  },
+  {
+    "control_id": "C-009",
+    "control_name": "Customer Due Diligence (CDD) at onboarding",
+    "description": "Identity/address verification and risk profiling at account opening.",
+    "owner_function": "F05",
+    "linked_kci": "K-009"
+  },
+  {
+    "control_id": "C-010",
+    "control_name": "V-CIP integrity",
+    "description": "Video-KYC sessions live, geo-tagged, and reviewed for tampering.",
+    "owner_function": "F05",
+    "linked_kci": "K-010"
+  },
+  {
+    "control_id": "C-011",
+    "control_name": "Periodic KYC updation (re-KYC)",
+    "description": "Re-KYC performed on schedule by customer risk band.",
+    "owner_function": "F05",
+    "linked_kci": null
+  },
+  {
+    "control_id": "C-012",
+    "control_name": "Customer risk categorisation",
+    "description": "Every customer classified low/medium/high and reviewed periodically.",
+    "owner_function": "F13",
+    "linked_kci": "K-012"
+  },
+  {
+    "control_id": "C-013",
+    "control_name": "Sanctions / watchlist screening",
+    "description": "Customers and counterparties screened against sanction/PEP lists.",
+    "owner_function": "F13",
+    "linked_kci": "K-013"
+  },
+  {
+    "control_id": "C-014",
+    "control_name": "STR filing to FIU-IND",
+    "description": "Suspicious transactions reported within the prescribed timeline.",
+    "owner_function": "F13",
+    "linked_kci": "K-014"
+  },
+  {
+    "control_id": "C-015",
+    "control_name": "PPI KYC & load-limit enforcement",
+    "description": "Wallet load/balance kept within PPI-tier limits by KYC status.",
+    "owner_function": "F01",
+    "linked_kci": "K-015"
+  },
+  {
+    "control_id": "C-016",
+    "control_name": "Escrow / nodal account reconciliation",
+    "description": "Daily reconciliation of nodal/escrow balances against customer liability.",
+    "owner_function": "F14",
+    "linked_kci": "K-016"
+  },
+  {
+    "control_id": "C-017",
+    "control_name": "UPI failed-txn auto-reversal",
+    "description": "Failed/declined UPI debits auto-reversed within the mandated window.",
+    "owner_function": "F02",
+    "linked_kci": "K-017"
+  },
+  {
+    "control_id": "C-018",
+    "control_name": "TAT & compensation for failed transactions",
+    "description": "Per-scenario TAT tracked; compensation paid on breach.",
+    "owner_function": "F02",
+    "linked_kci": "K-018"
+  },
+  {
+    "control_id": "C-019",
+    "control_name": "Merchant onboarding KYC & risk review",
+    "description": "Merchant KYC, category-risk review and ongoing monitoring.",
+    "owner_function": "F05",
+    "linked_kci": "K-019"
+  },
+  {
+    "control_id": "C-020",
+    "control_name": "Chargeback / dispute-handling SLA",
+    "description": "Card disputes and chargebacks handled within network SLAs.",
+    "owner_function": "F04",
+    "linked_kci": "K-020"
+  },
+  {
+    "control_id": "C-021",
+    "control_name": "Card network (PCI-DSS) compliance",
+    "description": "Cardholder data environment maintained to PCI-DSS.",
+    "owner_function": "F04",
+    "linked_kci": null
+  },
+  {
+    "control_id": "C-022",
+    "control_name": "Payment data localisation",
+    "description": "All payment data stored only within India.",
+    "owner_function": "F10",
+    "linked_kci": "K-022"
+  },
+  {
+    "control_id": "C-023",
+    "control_name": "Consent & purpose limitation (DPDP)",
+    "description": "Personal data used only for consented, stated purposes.",
+    "owner_function": "F10",
+    "linked_kci": "K-023"
+  },
+  {
+    "control_id": "C-024",
+    "control_name": "Data retention & purging schedule",
+    "description": "Data retained only for the defined period, then purged.",
+    "owner_function": "F10",
+    "linked_kci": null
+  },
+  {
+    "control_id": "C-025",
+    "control_name": "Access control & least privilege",
+    "description": "Role-based access reviewed; least-privilege enforced across systems.",
+    "owner_function": "F09",
+    "linked_kci": "K-025"
+  },
+  {
+    "control_id": "C-026",
+    "control_name": "VAPT / periodic security testing",
+    "description": "Vulnerability assessment and pen-testing on schedule with closure.",
+    "owner_function": "F08",
+    "linked_kci": "K-026"
+  },
+  {
+    "control_id": "C-027",
+    "control_name": "Cyber incident reporting (6-hour)",
+    "description": "Cyber incidents reported to RBI/CERT-In within the 6-hour window.",
+    "owner_function": "F08",
+    "linked_kci": "K-027"
+  },
+  {
+    "control_id": "C-028",
+    "control_name": "Business continuity & DR drill",
+    "description": "DR/BCP plan maintained and drills conducted periodically.",
+    "owner_function": "F08",
+    "linked_kci": null
+  },
+  {
+    "control_id": "C-029",
+    "control_name": "Regulatory return accuracy & timeliness",
+    "description": "Returns filed accurately and on time with maker-checker.",
+    "owner_function": "F11",
+    "linked_kci": "K-029"
+  },
+  {
+    "control_id": "C-030",
+    "control_name": "Return format change management",
+    "description": "New/changed reporting formats implemented before effective date.",
+    "owner_function": "F11",
+    "linked_kci": "K-030"
+  },
+  {
+    "control_id": "C-031",
+    "control_name": "Outsourcing agreement & exit governance",
+    "description": "Outsourcing contracts carry audit rights and exit/BCP clauses.",
+    "owner_function": "F15",
+    "linked_kci": "K-031"
+  },
+  {
+    "control_id": "C-032",
+    "control_name": "Vendor/LSP periodic risk assessment",
+    "description": "Material vendors and LSPs risk-assessed at defined frequency.",
+    "owner_function": "F15",
+    "linked_kci": "K-032"
+  },
+  {
+    "control_id": "C-033",
+    "control_name": "Real-time fraud monitoring rules",
+    "description": "Transaction fraud rules tuned; alerts triaged within SLA.",
+    "owner_function": "F12",
+    "linked_kci": "K-033"
+  },
+  {
+    "control_id": "C-034",
+    "control_name": "Fraud reporting to RBI",
+    "description": "Frauds reported to RBI in the prescribed format and timeline.",
+    "owner_function": "F12",
+    "linked_kci": "K-034"
+  },
+  {
+    "control_id": "C-035",
+    "control_name": "Product regulatory change management",
+    "description": "Regulatory changes assessed and productised via change control.",
+    "owner_function": "F16",
+    "linked_kci": null
+  },
+  {
+    "control_id": "C-036",
+    "control_name": "Penal charges vs penal interest segregation",
+    "description": "Penal charges levied as charges (not capitalised interest) and disclosed.",
+    "owner_function": "F16",
+    "linked_kci": "K-036"
+  }
+]

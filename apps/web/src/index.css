@@ -6,3 +6,17 @@ body {
   @apply bg-gray-50 text-gray-900;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
+
+:root {
+  /* Status palette — reserved for state (RAG health), never reused as a series
+     colour. Amber sits below 3:1 on a light surface by design, so every status
+     chip pairs the colour with an icon and a word: colour never carries meaning
+     on its own. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  /* Chart chrome */
+  --chart-surface: #ffffff;
+  --ink-muted: #898781;
+}
