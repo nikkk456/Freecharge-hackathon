@@ -35,7 +35,7 @@ MatchKind = Literal[
 
 VERIFIED_KINDS = frozenset({"exact", "normalised", "case_insensitive"})
 
-TargetKind = Literal["risk", "function", "action_item", "summary"]
+TargetKind = Literal["risk", "function", "action_item", "summary", "rcm_row"]
 
 
 @dataclass(frozen=True)

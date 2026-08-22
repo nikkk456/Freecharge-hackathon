@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from app.core.logging import configure_logging, get_logger
 from app.worker.queue import redis_settings
-from app.worker.tasks import analyze_circular, ocr_circular
+from app.worker.tasks import analyze_circular, build_rcm, ocr_circular
 
 log = get_logger("worker")
 
@@ -22,7 +22,7 @@ async def startup(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [ocr_circular, analyze_circular]
+    functions = [ocr_circular, analyze_circular, build_rcm]
     on_startup = startup
     redis_settings = redis_settings()
     # Design-for-failure defaults.

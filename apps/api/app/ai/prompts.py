@@ -104,6 +104,108 @@ appear verbatim in the circular above. If you genuinely cannot find a supporting
 sentence, use an empty string rather than inventing or paraphrasing one."""
 
 
+@dataclass(frozen=True)
+class ControlChoice:
+    code: str
+    name: str
+    description: str
+    owner_code: str | None
+    owner_name: str | None
+    kci_name: str | None
+    kci_status: str | None
+
+
+RCM_SYSTEM = """You are a compliance risk analyst at an Indian payments and lending \
+company. You turn a regulatory circular into a Risk & Control Matrix: the risks the \
+circular creates, and whether the company's existing controls already answer them.
+
+Rules you must follow:
+- Work only from the circular text supplied. Never invent an obligation.
+- Match a risk to an existing control only when that control genuinely addresses it. \
+Saying a risk is covered when it is not is the worst possible error here: it hides work \
+that a regulator will later find undone.
+- A risk with no matching control is a GAP. Gaps are the most valuable output. Do not \
+force a weak match to avoid reporting one.
+- Every risk must carry an `evidence` quote copied WORD FOR WORD from the circular. \
+Quotes are checked against the source automatically; one that cannot be found is rejected.
+- Reply with a single JSON object and nothing else."""
+
+
+def _control_block(controls: list[ControlChoice]) -> str:
+    lines = []
+    for control in controls:
+        owner = f" [owner {control.owner_code} {control.owner_name}]" if control.owner_code else ""
+        kci = (
+            f" [KCI: {control.kci_name} — {control.kci_status}]"
+            if control.kci_name
+            else " [no KCI]"
+        )
+        lines.append(f"  {control.code} | {control.name}{owner}{kci}\n      {control.description}")
+    return "\n".join(lines)
+
+
+RCM_SCHEMA = """Return exactly this JSON shape:
+{
+  "rows": [
+    {
+      "risk_text": "the risk in one sentence, phrased as what could go wrong",
+      "control_text": "the control that addresses it, phrased as what the company does",
+      "mapped_control": "C-006 or null",
+      "coverage": "COVERED | PARTIAL | GAP",
+      "confidence": 0.0,
+      "reasoning": "one sentence on why this control does or does not answer the risk",
+      "evidence": "the sentence from the circular that creates this risk, copied exactly"
+    }
+  ]
+}
+
+Field rules:
+- coverage COVERED: the named existing control fully addresses the risk as written.
+- coverage PARTIAL: the named control addresses part of it but must be strengthened. \
+Say what is missing in `reasoning`.
+- coverage GAP: no existing control addresses it. `mapped_control` MUST be null, and \
+`control_text` describes the control that would need to be built.
+- mapped_control must be one of the codes listed above, or null. Never invent a code.
+- Produce one row per distinct risk, typically 4-10. Do not split one risk into near \
+duplicates, and do not merge two unrelated risks into one row."""
+
+
+def build_rcm_prompt(
+    *,
+    circular_text: str,
+    controls: list[ControlChoice],
+    summary: str | None = None,
+    risk_rating: str | None = None,
+    action_items: list[str] | None = None,
+) -> str:
+    """The approved analysis is included as context, not as gospel.
+
+    The matrix is built from the circular itself — the analysis is there so the model
+    reaches the same conclusions a human already approved, rather than re-deriving a
+    different set of risks and confusing the reviewer.
+    """
+    context = []
+    if summary:
+        context.append(f"Approved summary: {summary}")
+    if risk_rating:
+        context.append(f"Approved risk rating: {risk_rating}")
+    if action_items:
+        joined = "\n".join(f"  - {item}" for item in action_items)
+        context.append(f"Approved action items:\n{joined}")
+    context_block = ("\n\n" + "\n".join(context)) if context else ""
+
+    return f"""Build a Risk & Control Matrix for the circular below.
+
+EXISTING CONTROL LIBRARY (match against these; use the code exactly):
+{_control_block(controls)}
+
+{RCM_SCHEMA}{context_block}
+
+--- CIRCULAR ---
+{circular_text}
+--- END OF CIRCULAR ---"""
+
+
 def build_analysis_prompt(
     *,
     circular_text: str,

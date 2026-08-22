@@ -7,7 +7,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.enums import AnalysisStatus, AssertionSource, Priority, RiskRating
+from app.models.enums import (
+    ActionItemStatus,
+    AnalysisStatus,
+    AssertionSource,
+    Priority,
+    RiskRating,
+)
 
 # ---------------------------------------------------------------------------
 # What we accept back from the model
@@ -23,7 +29,7 @@ def _blank_to_none(value: object) -> object:
     return value
 
 
-def _evidence_string(value: object) -> str:
+def evidence_string(value: object) -> str:
     """Evidence is always a string — never None — so grounding can report a missing
     quote as an unverified citation rather than silently dropping the claim.
 
@@ -53,12 +59,12 @@ class ImpactedFunctionDraft(BaseModel):
     @field_validator("evidence", mode="before")
     @classmethod
     def _evidence(cls, v: object) -> object:
-        return _evidence_string(v)
+        return evidence_string(v)
 
     @field_validator("confidence", mode="before")
     @classmethod
     def _scale(cls, v: object) -> object:
-        return _normalise_confidence(v)
+        return normalise_confidence(v)
 
 
 class ActionItemDraft(BaseModel):
@@ -71,7 +77,7 @@ class ActionItemDraft(BaseModel):
     @field_validator("evidence", mode="before")
     @classmethod
     def _evidence(cls, v: object) -> object:
-        return _evidence_string(v)
+        return evidence_string(v)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -116,7 +122,7 @@ class AnalysisDraft(BaseModel):
     @field_validator("confidence", mode="before")
     @classmethod
     def _scale(cls, v: object) -> object:
-        return _normalise_confidence(v)
+        return normalise_confidence(v)
 
     @field_validator("title", "effective_date", mode="before")
     @classmethod
@@ -126,10 +132,10 @@ class AnalysisDraft(BaseModel):
     @field_validator("risk_evidence", mode="before")
     @classmethod
     def _evidence(cls, v: object) -> object:
-        return _evidence_string(v)
+        return evidence_string(v)
 
 
-def _normalise_confidence(value: object) -> object:
+def normalise_confidence(value: object) -> object:
     """Accept 0.85, "0.85", "85%" or 85 — all meaning the same thing.
 
     The interesting case is a value just above 1. `85` is obviously a percentage, but
@@ -173,7 +179,7 @@ class CitationOut(BaseModel):
 
     claim: str
     quote: str
-    target_kind: Literal["risk", "function", "action_item", "summary"]
+    target_kind: Literal["risk", "function", "action_item", "summary", "rcm_row"]
     target_ref: str | None = None
     char_start: int | None = None
     char_end: int | None = None
@@ -222,6 +228,10 @@ class AnalysisOut(BaseModel):
     confidence: float | None
     model_name: str | None
     created_at: datetime
+    published_at: datetime | None = None
+    reviewed_by_name: str | None = None
+    edited_by_name: str | None = None
+    editable: bool = True
     needs_review: bool = False
     # Grounding summary — "7 of 8 claims verified" is the headline of the whole product.
     citations_total: int = 0
@@ -230,6 +240,50 @@ class AnalysisOut(BaseModel):
     citations: list[CitationOut] = Field(default_factory=list)
     impacted_functions: list[ImpactedFunctionOut] = Field(default_factory=list)
     action_items: list[ActionItemOut] = Field(default_factory=list)
+
+
+class AnalysisPatch(BaseModel):
+    """A reviewer's override of the model's wording. Every field optional; only what
+    is sent is changed, so two reviewers editing different fields do not clobber
+    each other."""
+
+    summary: str | None = None
+    risk_rating: RiskRating | None = None
+    risk_reasoning: str | None = None
+
+
+class ActionItemPatch(BaseModel):
+    description: str | None = None
+    priority: Priority | None = None
+    owner_function_code: str | None = None
+    due_date: date | None = None
+    status: ActionItemStatus | None = None
+
+
+class ActionItemCreate(BaseModel):
+    """An obligation the reviewer spotted that the model missed."""
+
+    description: str = Field(min_length=3)
+    priority: Priority = Priority.MEDIUM
+    owner_function_code: str | None = None
+    due_date: date | None = None
+
+
+class FunctionAssert(BaseModel):
+    """A reviewer adding or correcting an impacted department."""
+
+    code: str
+    reasoning: str | None = None
+
+
+class PublishResult(BaseModel):
+    analysis_id: uuid.UUID
+    circular_id: uuid.UUID
+    status: AnalysisStatus
+    version: int
+    published_at: datetime | None
+    reviewed_by: str
+    detail: str
 
 
 class AnalysisRunAccepted(BaseModel):

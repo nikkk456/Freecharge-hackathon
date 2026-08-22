@@ -15,10 +15,12 @@ from app.models.analysis import AIAnalysis
 from app.models.circular import Circular, CircularFunction, Function
 from app.models.enums import (
     ActionItemStatus,
+    ActorKind,
     AnalysisStatus,
     AssertionSource,
     CircularStatus,
 )
+from app.models.user import User
 from app.modules.analysis.schemas import (
     ActionItemOut,
     AnalysisDraft,
@@ -27,6 +29,7 @@ from app.modules.analysis.schemas import (
     ImpactedFunctionOut,
     dedup_key,
 )
+from app.modules.audit import service as audit
 
 log = get_logger("analysis.service")
 
@@ -167,6 +170,28 @@ async def _store(
 
     circular.status = CircularStatus.ANALYZED
     circular.analysis_error = None
+
+    # The other half of the audit story: the model's suggestion is recorded with the
+    # same weight as a human decision, so the trail shows what was proposed as well as
+    # what was approved.
+    await audit.record(
+        db,
+        entity_type="ai_analysis",
+        entity_id=analysis.id,
+        action="AI_SUGGESTED",
+        actor_id=None,
+        actor_kind=ActorKind.AI,
+        after={
+            "version": analysis.version,
+            "model": result.model,
+            "risk_rating": draft.risk_rating.value,
+            "confidence": draft.confidence,
+            "impacted_functions": [f.code for f in draft.impacted_functions],
+            "action_items": len(draft.action_items),
+            "citations_verified": report.verified,
+            "citations_total": report.total,
+        },
+    )
     await db.commit()
     return analysis
 
@@ -337,6 +362,36 @@ async def analysis_count(db: AsyncSession, circular_id: uuid.UUID) -> int:
     )
 
 
+async def action_item_out(db: AsyncSession, item: ActionItem) -> ActionItemOut:
+    """One action item with its owning department resolved."""
+    owner = (
+        (
+            await db.execute(select(Function).where(Function.id == item.owner_function_id))
+        ).scalar_one_or_none()
+        if item.owner_function_id
+        else None
+    )
+    return ActionItemOut(
+        id=item.id,
+        description=item.description,
+        priority=item.priority,
+        status=item.status.value,
+        due_date=item.due_date,
+        owner_function_code=owner.code if owner else None,
+        owner_function_name=owner.name if owner else None,
+        source=item.source,
+        citation=None,  # citations belong to an analysis version, not to the item
+    )
+
+
+async def _user_names(db: AsyncSession, *ids: uuid.UUID | None) -> dict[uuid.UUID, str]:
+    wanted = [i for i in ids if i]
+    if not wanted:
+        return {}
+    rows = (await db.execute(select(User).where(User.id.in_(wanted)))).scalars()
+    return {u.id: u.full_name for u in rows}
+
+
 async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
     functions = (
         await db.execute(
@@ -356,6 +411,7 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
         )
     ).all()
 
+    names = await _user_names(db, analysis.reviewed_by, analysis.edited_by)
     citations = [CitationOut.model_validate(row) for row in (analysis.citations or [])]
     by_function = {c.target_ref: c for c in citations if c.target_kind == "function"}
     by_action = {c.target_ref: c for c in citations if c.target_kind == "action_item"}
@@ -372,6 +428,10 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
         confidence=analysis.confidence,
         model_name=analysis.model_name,
         created_at=analysis.created_at,
+        published_at=analysis.published_at,
+        reviewed_by_name=names.get(analysis.reviewed_by) if analysis.reviewed_by else None,
+        edited_by_name=names.get(analysis.edited_by) if analysis.edited_by else None,
+        editable=analysis.status == AnalysisStatus.DRAFT,
         needs_review=(analysis.confidence or 0) < settings.min_confidence_for_autoaccept,
         citations_total=len(citations),
         citations_verified=sum(1 for c in citations if c.verified),

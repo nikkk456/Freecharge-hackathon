@@ -27,6 +27,10 @@ Nobody thinks it's hallucinating.
 - [x] ARQ async analysis job (summary, functions, risk rating, action items)
 - [x] Citation grounding + verification (model quotes; our code finds and checks offsets)
 - [x] Review UI with citation highlighting (click a claim → its line highlights)
+- [x] JWT login + RBAC (only reviewer/owner may approve)
+- [x] Human review: edit any field, override the rating, approve → PUBLISHED (frozen)
+- [x] Audit log on every step (hash-chained, tamper-evident, verifiable live)
+- [x] Draft RCM + control-library matching (whole 36-row library in-context, no embeddings)
 - [ ] Chunk with char offsets + embed + store vectors
 - [ ] LLM provider abstraction (LiteLLM) + structured analysis prompt
 - [ ] Citation grounding + verification

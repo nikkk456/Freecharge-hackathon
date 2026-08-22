@@ -2,13 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AnalysisPanel from "../components/AnalysisPanel";
 import HighlightedText from "../components/HighlightedText";
+import RcmPanel from "../components/RcmPanel";
 import StatusBadge from "../components/StatusBadge";
 import {
   api,
   type Analysis,
   type CircularDetail as Detail,
   type Citation,
+  type ControlOut,
+  type FunctionOut,
   type LlmStatus,
+  type Rcm,
   type TextSource,
 } from "../lib/api";
 import { usePolling } from "../lib/usePolling";
@@ -30,6 +34,11 @@ export default function CircularDetail() {
   const [analysing, setAnalysing] = useState(false);
   const [showText, setShowText] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
+  const [functions, setFunctions] = useState<FunctionOut[]>([]);
+  const [controls, setControls] = useState<ControlOut[]>([]);
+  const [rcm, setRcm] = useState<Rcm | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [tab, setTab] = useState<"analysis" | "rcm">("analysis");
 
   // Clicking a claim's source has to reveal the text before it can scroll to it.
   function selectCitation(citation: Citation) {
@@ -43,12 +52,40 @@ export default function CircularDetail() {
       .then(setDoc)
       .catch((e: Error) => setError(e.message));
     api.analysis(id).then(setAnalysis).catch(() => setAnalysis(null));
+    api.rcm(id).then(setRcm).catch(() => setRcm(null));
   }, [id]);
 
   useEffect(load, [load]);
   useEffect(() => {
     api.llmStatus().then(setLlm).catch(() => setLlm(null));
+    api.functions().then(setFunctions).catch(() => setFunctions([]));
+    api.controls().then(setControls).catch(() => setControls([]));
   }, []);
+
+  // The matrix is built in the worker, so keep asking until rows appear.
+  usePolling(load, building && !rcm, 3000);
+
+  async function buildRcm() {
+    setBuilding(true);
+    setError("");
+    try {
+      await api.buildRcm(id);
+      // Poll until the worker has written rows, then stop.
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const next = await api.rcm(id);
+        if (next && next.rows.length > 0 && next.model_name) {
+          setRcm(next);
+          break;
+        }
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBuilding(false);
+      load();
+    }
+  }
 
   const inFlight = doc?.status === "PARSING" || doc?.status === "ANALYZING";
   usePolling(load, inFlight);
@@ -203,11 +240,51 @@ export default function CircularDetail() {
       )}
 
       {analysis && (
-        <AnalysisPanel
-          analysis={analysis}
-          activeCitation={activeCitation}
-          onSelectCitation={selectCitation}
-        />
+        <>
+          <div className="flex gap-1 border-b border-gray-200">
+            {(
+              [
+                ["analysis", "Analysis"],
+                ["rcm", `Risk & Control Matrix${rcm ? ` (${rcm.rows.length})` : ""}`],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                  tab === key
+                    ? "border-gray-900 font-medium text-gray-900"
+                    : "border-transparent text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "analysis" ? (
+            <AnalysisPanel
+              analysis={analysis}
+              functions={functions}
+              activeCitation={activeCitation}
+              onSelectCitation={selectCitation}
+              onChanged={load}
+            />
+          ) : (
+            <RcmPanel
+              circularId={id}
+              rcm={rcm}
+              controls={controls}
+              building={building}
+              canBuild={!!analysis}
+              activeCitation={activeCitation}
+              onSelectCitation={selectCitation}
+              onBuild={() => void buildRcm()}
+              onChanged={load}
+            />
+          )}
+        </>
       )}
 
       <div className="flex flex-wrap items-center gap-3">

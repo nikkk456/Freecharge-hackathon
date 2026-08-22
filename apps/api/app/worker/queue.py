@@ -43,6 +43,12 @@ async def enqueue_analysis(circular_id: uuid.UUID) -> bool:
     return await _enqueue("analyze_circular", circular_id, job_id=f"analyze:{uuid.uuid4()}")
 
 
+async def enqueue_rcm(circular_id: uuid.UUID) -> bool:
+    """Queue RCM generation. Fresh job id per run, like analysis: rebuilding a matrix
+    is a legitimate action and must not be blocked by ARQ's cached-result window."""
+    return await _enqueue("build_rcm", circular_id, job_id=f"rcm:{uuid.uuid4()}")
+
+
 async def enqueue_ocr(circular_id: uuid.UUID) -> bool:
     """Queue the OCR job. False means Redis is unreachable — run it inline instead.
 

@@ -64,6 +64,19 @@ class RcmStatus(str, enum.Enum):
     PUBLISHED = "PUBLISHED"
 
 
+class Coverage(str, enum.Enum):
+    """How well the existing control library answers a risk.
+
+    GAP is the finding that matters most: it is the one that creates work. A row
+    claiming COVERED with no control behind it is a contradiction, and the service
+    downgrades it rather than storing it.
+    """
+
+    COVERED = "COVERED"
+    PARTIAL = "PARTIAL"
+    GAP = "GAP"
+
+
 class KciFrequency(str, enum.Enum):
     DAILY = "DAILY"
     WEEKLY = "WEEKLY"

@@ -3,14 +3,28 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.client import is_configured
 from app.core.config import settings
+from app.core.deps import get_current_user, require_roles
 from app.db.session import get_db
-from app.models.enums import CircularStatus
-from app.modules.analysis import service
-from app.modules.analysis.schemas import AnalysisOut, AnalysisRunAccepted, LlmStatus
+from app.models.analysis import AIAnalysis
+from app.models.enums import CircularStatus, Role
+from app.models.user import User
+from app.modules.analysis import review, service
+from app.modules.analysis.schemas import (
+    ActionItemCreate,
+    ActionItemOut,
+    ActionItemPatch,
+    AnalysisOut,
+    AnalysisPatch,
+    AnalysisRunAccepted,
+    FunctionAssert,
+    LlmStatus,
+    PublishResult,
+)
 from app.modules.analysis.service import NotAnalysable
 from app.modules.circulars import service as circulars_service
 
@@ -28,6 +42,15 @@ async def _require_circular(db: AsyncSession, circular_id: uuid.UUID):  # noqa: 
     if circular is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Circular not found")
     return circular
+
+
+async def _require_analysis(db: AsyncSession, circular_id: uuid.UUID) -> AIAnalysis:
+    analysis = await service.latest_analysis(db, circular_id)
+    if analysis is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This circular has not been analysed yet."
+        )
+    return analysis
 
 
 @llm_router.get("/status", response_model=LlmStatus)
@@ -107,3 +130,121 @@ async def get_analysis(
     await _require_circular(db, circular_id)
     analysis = await service.latest_analysis(db, circular_id)
     return await service.build_output(db, analysis) if analysis else None
+
+
+@router.post(
+    "/{circular_id}/action-items", response_model=AnalysisOut, status_code=status.HTTP_201_CREATED
+)
+async def add_action_item(
+    circular_id: uuid.UUID,
+    payload: ActionItemCreate,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> AnalysisOut:
+    """Add an obligation the model missed."""
+    circular = await _require_circular(db, circular_id)
+    analysis = await _require_analysis(db, circular_id)
+    review.assert_editable(analysis)
+    await review.create_action_item(db, circular, payload, actor)
+    return await service.build_output(db, analysis)
+
+
+# ---------------------------------------------------------------------------
+# Review — editing the draft
+# ---------------------------------------------------------------------------
+review_router = APIRouter(prefix="/analyses", tags=["review"])
+
+
+async def _analysis_by_id(db: AsyncSession, analysis_id: uuid.UUID) -> AIAnalysis:
+    analysis = (
+        await db.execute(select(AIAnalysis).where(AIAnalysis.id == analysis_id))
+    ).scalar_one_or_none()
+    if analysis is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Analysis not found")
+    return analysis
+
+
+@review_router.patch("/{analysis_id}", response_model=AnalysisOut)
+async def edit_analysis(
+    analysis_id: uuid.UUID,
+    changes: AnalysisPatch,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> AnalysisOut:
+    """Override the model's summary, rating or reasoning. Drafts only."""
+    analysis = await _analysis_by_id(db, analysis_id)
+    await review.patch_analysis(db, analysis, changes, actor)
+    return await service.build_output(db, analysis)
+
+
+@review_router.post("/{analysis_id}/functions", response_model=AnalysisOut)
+async def assert_function(
+    analysis_id: uuid.UUID,
+    payload: FunctionAssert,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> AnalysisOut:
+    analysis = await _analysis_by_id(db, analysis_id)
+    await review.add_function(db, analysis, payload, actor)
+    return await service.build_output(db, analysis)
+
+
+@review_router.delete("/{analysis_id}/functions/{code}", response_model=AnalysisOut)
+async def retract_function(
+    analysis_id: uuid.UUID,
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> AnalysisOut:
+    analysis = await _analysis_by_id(db, analysis_id)
+    await review.remove_function(db, analysis, code, actor)
+    return await service.build_output(db, analysis)
+
+
+@review_router.post("/{analysis_id}/publish", response_model=PublishResult)
+async def publish_analysis(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(require_roles(Role.REVIEWER, Role.OWNER)),
+) -> PublishResult:
+    """Approve the draft. Reviewers and owners only — an analyst drafts, someone else signs."""
+    analysis = await _analysis_by_id(db, analysis_id)
+    circular = await _require_circular(db, analysis.circular_id)
+    await review.publish(db, analysis, circular, actor)
+    return PublishResult(
+        analysis_id=analysis.id,
+        circular_id=analysis.circular_id,
+        status=analysis.status,
+        version=analysis.version,
+        published_at=analysis.published_at,
+        reviewed_by=actor.full_name,
+        detail=f"Version {analysis.version} approved by {actor.full_name}.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Action items
+# ---------------------------------------------------------------------------
+items_router = APIRouter(prefix="/action-items", tags=["review"])
+
+
+@items_router.patch("/{item_id}", response_model=ActionItemOut)
+async def edit_action_item(
+    item_id: uuid.UUID,
+    changes: ActionItemPatch,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> ActionItemOut:
+    item = await review.get_action_item(db, item_id)
+    await review.patch_action_item(db, item, changes, actor)
+    return await service.action_item_out(db, item)
+
+
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_action_item(
+    item_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_user),
+) -> None:
+    item = await review.get_action_item(db, item_id)
+    await review.delete_action_item(db, item, actor)

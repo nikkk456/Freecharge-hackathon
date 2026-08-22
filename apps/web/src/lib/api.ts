@@ -1,16 +1,44 @@
 // Typed API client. In dev, Vite proxies /api and /health to FastAPI (vite.config.ts).
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+const TOKEN_KEY = "cac.token";
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // private mode / blocked storage
+  }
+}
+
+export function setToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable — the session simply will not persist a reload */
+  }
+}
+
+/** Raised on 401 so the app can send the user to log in instead of showing an error. */
+export class Unauthorized extends Error {}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   // FormData must set its own Content-Type so the multipart boundary is included.
   const isForm = init.body instanceof FormData;
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       ...(isForm ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
   });
+  if (res.status === 401) {
+    setToken(null);
+    throw new Unauthorized(await readError(res));
+  }
   if (!res.ok) throw new Error(await readError(res));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -135,7 +163,7 @@ export type CitationMatch =
 export interface Citation {
   claim: string;
   quote: string;
-  target_kind: "risk" | "function" | "action_item" | "summary";
+  target_kind: "risk" | "function" | "action_item" | "summary" | "rcm_row";
   target_ref: string | null;
   char_start: number | null;
   char_end: number | null;
@@ -181,6 +209,11 @@ export interface Analysis {
   confidence: number | null;
   model_name: string | null;
   created_at: string;
+  published_at: string | null;
+  reviewed_by_name: string | null;
+  edited_by_name: string | null;
+  /** False once published — the API refuses edits, and the UI must not offer them. */
+  editable: boolean;
   needs_review: boolean;
   citations_total: number;
   citations_verified: number;
@@ -203,6 +236,107 @@ export interface LlmStatus {
   fallbacks: string[];
   detail: string;
 }
+
+export type RoleName = "analyst" | "reviewer" | "owner" | "admin";
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role: RoleName;
+  is_active: boolean;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in_minutes: number;
+  user: User;
+}
+
+export interface PublishResult {
+  analysis_id: string;
+  circular_id: string;
+  status: string;
+  version: number;
+  published_at: string | null;
+  reviewed_by: string;
+  detail: string;
+}
+
+export type CoverageName = "COVERED" | "PARTIAL" | "GAP";
+
+export interface MappedControl {
+  code: string;
+  name: string;
+  owner_function_code: string | null;
+  owner_function_name: string | null;
+  kci_code: string | null;
+  kci_name: string | null;
+  kci_status: RagStatus | null;
+  kci_target: string | null;
+  kci_current_value: string | null;
+}
+
+export interface RcmRow {
+  id: string;
+  position: number;
+  risk_text: string;
+  control_text: string;
+  coverage: CoverageName;
+  reasoning: string | null;
+  confidence: number | null;
+  source: "AI" | "HUMAN";
+  control: MappedControl | null;
+  citation: Citation | null;
+}
+
+export interface Rcm {
+  id: string;
+  circular_id: string;
+  status: "DRAFT" | "PUBLISHED";
+  model_name: string | null;
+  created_at: string;
+  published_at: string | null;
+  reviewed_by_name: string | null;
+  editable: boolean;
+  rows: RcmRow[];
+  covered: number;
+  partial: number;
+  gaps: number;
+  citations_verified: number;
+  citations_total: number;
+}
+
+export interface RcmRunAccepted {
+  circular_id: string;
+  queued: boolean;
+  detail: string;
+}
+
+export interface AuditEntry {
+  seq: number;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  actor_id: string | null;
+  actor_kind: "HUMAN" | "AI" | "SYSTEM";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  prev_hash: string | null;
+  hash: string;
+  created_at: string;
+}
+
+export interface ChainStatus {
+  total: number;
+  intact: boolean;
+  broken_at_seq: number | null;
+  detail: string;
+}
+
+/** Only these roles may approve a draft — mirrors the API's own guard. */
+export const CAN_PUBLISH: RoleName[] = ["reviewer", "owner", "admin"];
 
 export const api = {
   health: () => request<Health>("/health"),
@@ -229,6 +363,104 @@ export const api = {
   deleteCircular: (id: string) =>
     request<void>(`/api/v1/circulars/${id}`, { method: "DELETE" }),
   ocrStatus: () => request<OcrStatus>("/api/v1/circulars/ocr-status"),
+
+  login: (email: string, password: string) =>
+    request<TokenResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => request<User>("/api/v1/auth/me"),
+
+  editAnalysis: (
+    analysisId: string,
+    changes: Partial<Pick<Analysis, "summary" | "risk_rating" | "risk_reasoning">>,
+  ) =>
+    request<Analysis>(`/api/v1/analyses/${analysisId}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+  publish: (analysisId: string) =>
+    request<PublishResult>(`/api/v1/analyses/${analysisId}/publish`, { method: "POST" }),
+  addFunction: (analysisId: string, code: string, reasoning?: string) =>
+    request<Analysis>(`/api/v1/analyses/${analysisId}/functions`, {
+      method: "POST",
+      body: JSON.stringify({ code, reasoning: reasoning ?? null }),
+    }),
+  removeFunction: (analysisId: string, code: string) =>
+    request<Analysis>(`/api/v1/analyses/${analysisId}/functions/${code}`, {
+      method: "DELETE",
+    }),
+  addActionItem: (
+    circularId: string,
+    payload: {
+      description: string;
+      priority: PriorityName;
+      owner_function_code: string | null;
+      due_date: string | null;
+    },
+  ) =>
+    request<Analysis>(`/api/v1/circulars/${circularId}/action-items`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  editActionItem: (
+    itemId: string,
+    changes: Partial<{
+      description: string;
+      priority: PriorityName;
+      owner_function_code: string | null;
+      due_date: string | null;
+    }>,
+  ) =>
+    request<ActionItem>(`/api/v1/action-items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+  deleteActionItem: (itemId: string) =>
+    request<void>(`/api/v1/action-items/${itemId}`, { method: "DELETE" }),
+
+  rcm: (circularId: string) => request<Rcm | null>(`/api/v1/circulars/${circularId}/rcm`),
+  buildRcm: (circularId: string) =>
+    request<RcmRunAccepted>(`/api/v1/circulars/${circularId}/rcm`, { method: "POST" }),
+  addRcmRow: (
+    circularId: string,
+    payload: {
+      risk_text: string;
+      control_text: string;
+      coverage: CoverageName;
+      mapped_control_code: string | null;
+    },
+  ) =>
+    request<Rcm>(`/api/v1/circulars/${circularId}/rcm/rows`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  editRcmRow: (
+    rowId: string,
+    changes: Partial<{
+      risk_text: string;
+      control_text: string;
+      coverage: CoverageName;
+      reasoning: string;
+      mapped_control_code: string | null;
+    }>,
+  ) =>
+    request<Rcm>(`/api/v1/rcm-rows/${rowId}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+  deleteRcmRow: (rowId: string) =>
+    request<void>(`/api/v1/rcm-rows/${rowId}`, { method: "DELETE" }),
+  publishRcm: (rcmId: string) =>
+    request<PublishResult>(`/api/v1/rcms/${rcmId}/publish`, { method: "POST" }),
+
+  auditTrail: (params: { entity_id?: string; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.entity_id) q.set("entity_id", params.entity_id);
+    q.set("limit", String(params.limit ?? 200));
+    return request<AuditEntry[]>(`/api/v1/audit?${q}`);
+  },
+  auditVerify: () => request<ChainStatus>("/api/v1/audit/verify"),
 
   llmStatus: () => request<LlmStatus>("/api/v1/llm/status"),
   analysis: (circularId: string) =>

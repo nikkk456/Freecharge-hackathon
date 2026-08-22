@@ -13,6 +13,7 @@ from app.db.session import SessionLocal
 from app.models.enums import CircularStatus
 from app.modules.analysis import service as analysis
 from app.modules.circulars import service as circulars
+from app.modules.rcm import service as rcm
 
 log = get_logger("worker.tasks")
 
@@ -61,3 +62,23 @@ async def analyze_circular(ctx: dict, circular_id: str) -> str:
 
         result = await analysis.run_analysis(db, circular)
         return f"v{result.version}" if result else "failed"
+
+
+async def build_rcm(ctx: dict, circular_id: str) -> str:
+    """Build the Risk & Control Matrix for a circular.
+
+    Like analysis, returns an outcome rather than raising when the model is
+    unreachable — retrying a model that is known to be down only burns free-tier quota.
+    """
+    async with SessionLocal() as db:
+        circular = await circulars.get(db, uuid.UUID(circular_id))
+        if circular is None:
+            log.warning("rcm_skipped_missing_circular", circular_id=circular_id)
+            return "missing"
+
+        try:
+            result = await rcm.generate(db, circular)
+        except rcm.NotReady as exc:
+            log.warning("rcm_skipped", circular_id=circular_id, reason=str(exc))
+            return "skipped"
+        return f"rows={len(result.rows)}" if result else "failed"

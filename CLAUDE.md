@@ -40,9 +40,9 @@ the next stage. Ask questions *before* coding, not during.
 | 1 | Upload PDF → text extracted, stored, shown | ✅ done | Upload a circular, read its text on screen |
 | 2 | AI analysis: summary, impacted function, risk rating, action items | ✅ done | Model output appears for an uploaded circular |
 | 3 | **Verified citations** — every claim carries its exact source line | ✅ done | Click a claim → its source line highlights |
-| 4 | Review screen — human edits and approves the draft | ▶ next | Change the risk rating, press Approve |
-| 5 | RCM — match AI risks to the existing control library | ⬜ | A risk↔control table is produced |
-| 6 | Tracker — action items with owner, due date, status, reminders | ⬜ | An item shows "in progress" |
+| 4 | Review screen — human edits and approves the draft | ✅ done | Change the risk rating, press Approve |
+| 5 | RCM — match AI risks to the existing control library | ✅ done | A risk↔control table is produced |
+| 6 | Tracker — action items with owner, due date, status, reminders | ▶ next | An item shows "in progress" |
 
 ### Stage 0 — Foundation ✅
 Docker infra (Postgres+pgvector, Redis, MinIO), all 13 ORM tables, and the **foundation
@@ -131,18 +131,76 @@ words hyphenated across a line break. Tiers, each recorded in `match`: `exact` �
 cp1252, so `₹` becomes three characters and every offset after it appears shifted by two.
 That cost an hour chasing a bug that did not exist.
 
-### Stage 4 — Human review ▶ NEXT
-Edit any field, see confidence, override the risk rating, publish. Publishing sets
-`reviewed_by` and writes an audit row. `min_confidence_for_autoaccept` (0.75) marks
-low-confidence analyses as review-required.
+### Stage 4 — Human review ✅
+Real JWT login, an editable draft, and approval that is enforced rather than assumed.
+Three things landed together because none of them means anything alone: an approval
+needs a named person, a person needs something to change, and a change needs a record.
 
-### Stage 5 — RCM
-For each risk, the model is given **the entire 36-row control library in the prompt** and
-picks the covering control with reasoning. No embeddings — at 36 rows in-context matching
-is more accurate, costs nothing, and has no rate-limit failure mode. The pgvector columns
-stay in the schema so "this scales to 5000 controls" remains true.
+**A PUBLISHED analysis is frozen.** `assert_editable` rejects every edit path once
+published (409). An approval that could be silently rewritten afterwards is not an
+approval. Re-running the AI is still allowed — it produces a *new* DRAFT version, and
+publishing that steps the old one down to SUPERSEDED, so exactly one published version
+exists per circular.
 
-### Stage 6 — Tracker
+**RBAC.** Anyone signed in may edit a draft; only `reviewer`/`owner` (and `admin`, the
+break-glass role) may publish. An analyst drafts, someone else signs.
+
+**Human assertions survive the AI.** Adding a department a reviewer confirms sets
+`source=HUMAN`, and `_replace_impacted_functions` only clears AI-sourced rows — so a
+re-run cannot delete a human's judgement. Same rule for action items, from Stage 2.
+
+**The audit chain** (`modules/audit/`) records every AI suggestion and human decision.
+Each row's sha256 covers its content *plus the previous row's hash*.
+`GET /api/v1/audit/verify` walks it and distinguishes the two ways it breaks: a row
+whose own hash no longer matches (that row was altered) versus a row whose `prev_hash`
+does not match its predecessor (a row was deleted or inserted). Both verified live
+against Postgres. `seq` (a BigInteger identity) orders the chain — `created_at` is not
+enough, since two rows in the same millisecond have no defined predecessor — and
+`_last_row` takes `FOR UPDATE` so concurrent writers cannot fork it.
+
+Things that bite here:
+- **Audit payloads must be JSON.** `_plain` flattens enums/UUIDs/dates for readability
+  and `audit.jsonable` coerces at the boundary. A raw UUID in `after` once made the
+  JSONB insert throw, which would have rolled back the change it was recording.
+- **A no-op edit writes nothing.** Saving an unchanged field would pollute the trail.
+- **An audit write is never wrapped in try/except.** If it fails, the action fails with
+  it. A change without a trail is worse than no change.
+- **DB-backed tests append to the chain permanently** — the review functions commit,
+  and an append-only log cannot be cleaned up without breaking what it protects. Tests
+  verify only their own segment via `verify_chain(since_seq=...)`. Run
+  `python -m scripts.seed --reset` before a demo for a clean trail.
+
+### Stage 5 — RCM ✅
+For each risk the circular creates, does an existing control already answer it? The model
+gets **the entire 36-row control library in the prompt** — no embeddings. At 36 rows,
+in-context matching is more accurate, costs nothing, and has no rate-limit failure mode.
+The pgvector columns stay in the schema so "this scales to 5000 controls" remains true.
+
+Live result on the RBI recovery circular: 7 rows, 1 COVERED, 3 PARTIAL, **3 GAP**, 7/7
+citations verified. The gaps are real — device-locking, agency-list publication and
+advance-visit notice are new 2026 obligations the old library never anticipated.
+
+**The one rule that matters: a row may never claim more coverage than it can point at.**
+`_reconcile` forces `coverage=GAP` whenever no real control is mapped, and the same guard
+runs on human edits. Reporting a risk as COVERED with nothing behind it *hides work*,
+which is the single most damaging thing this feature could do — far worse than flagging a
+gap a reviewer then corrects. Note it only ever moves toward **more** work, never less: a
+row naming a real control but still saying GAP is left alone, because "this control exists
+and does not answer the risk" is a finding, not a contradiction.
+
+- **KCI is derived, never asked for.** control → KCI is a fact in our own data; asking the
+  model would invite it to invent one. That is what makes "covered by C-006, currently
+  **amber**" trustworthy.
+- **The approved analysis is context, not gospel.** Summary, rating and action items go
+  into the prompt so the model reaches the conclusions a human already approved, rather
+  than re-deriving a different set of risks and confusing the reviewer.
+- **Regenerating replaces AI rows, never human ones** — the same rule as action items.
+- **A published RCM is frozen**, exactly like an analysis. One RCM per circular; rebuilding
+  replaces the draft rather than versioning, since the analysis version is already audited.
+- Every risk carries a verified citation (`target_kind="rcm_row"`), reusing Stage 3's
+  grounding unchanged.
+
+### Stage 6 — Tracker ▶ NEXT
 Approved action items get owner + due date + status; overdue detection and reminders via
 an ARQ cron.
 
@@ -161,7 +219,7 @@ an ARQ cron.
 | PDF text | **pdfplumber** (MIT) | PyMuPDF is AGPL-3.0 → needs a paid Artifex licence in a bank. pypdf has no per-char geometry |
 | Rasterise | **pypdfium2** (already a pdfplumber dep) | No poppler, no system install |
 | OCR | **RapidOCR** default, **Tesseract** preferred when installed | RapidOCR is pip-only (works on a fresh machine); Tesseract reads RBI's italic serif better. Both run **locally** — a regulatory document never leaves the environment, the same argument as control C-022 |
-| Auth | JWT + RBAC (analyst/reviewer/owner/admin) | Scaffolded in `core/security.py`; **no `/auth/login` route yet** — built at Stage 4 |
+| Auth | JWT + RBAC (analyst/reviewer/owner/admin) | Real login as of Stage 4. Everything is behind sign-in: an approval must be attributable to a person |
 
 **Cost rule: nothing paid.** Gemini free tier only.
 
@@ -182,7 +240,7 @@ unreachable, not when the worker is merely absent).
 cd apps\api
 python -m scripts.seed              # upsert seed data (idempotent)
 python -m scripts.seed --reset      # DROP the schema and rebuild
-python -m pytest                    # 115 tests; DB-backed ones skip if Postgres is down
+python -m pytest                    # 188 tests; DB-backed ones skip if Postgres is down
 python -m ruff check app tests scripts
 ```
 
@@ -213,13 +271,18 @@ apps/api/app/
     library/   read-only functions/controls/KCIs        (Stage 0)
     circulars/ upload · parser · ocr · service · router (Stage 1)
     analysis/  schemas (model-output validation) · service · router (Stage 2)
+               review.py — human edits + publish state machine        (Stage 4)
+    auth/      login, /me                                             (Stage 4)
+    audit/     hash-chained trail + chain verification                (Stage 4)
+    rcm/       generation · review · router — risk↔control matching   (Stage 5)
   worker/      queue (enqueue side) · tasks · settings
   api/router.py  ← plug every module router in here
 apps/web/src/
-  lib/api.ts   typed client · usePolling.ts
+  lib/api.ts   typed client · usePolling.ts · auth.tsx (AuthProvider/useAuth)
   components/  StatTile · RagBar · StatusChip · StatusBadge · RiskBadge · ConfidenceMeter
-               AnalysisPanel · CitationChip · HighlightedText
-  pages/       Home (foundation) · Circulars · CircularDetail
+               AnalysisPanel · CitationChip · HighlightedText · ReviewControls
+               RcmPanel · CoverageChip
+  pages/       Home (foundation) · Circulars · CircularDetail · Login · Audit
 ```
 
 **Route ordering is a real hazard.** Routers share the `/circulars` prefix, and the
@@ -244,8 +307,20 @@ Adding a module: `app/modules/<name>/{router,service,schemas}.py` → include in
   parse still creates a row with a readable `parse_error` and a Retry button.
 - FastAPI errors are `{"detail": "..."}`; the web client unwraps that.
 - Log with structlog key-values, not f-strings.
-- Async SQLAlchemy: eager-load relationships (`selectinload`) or serialisation explodes.
 - Static routes before `/{id}` routes in a router.
+
+**Async SQLAlchemy has three traps, and Stage 5 hit all three.** Learn them once:
+1. **Eager-load, or it raises.** Touching an unloaded relationship (`rcm.rows`,
+   `control.kcis`) does IO from attribute access, which async SQLAlchemy cannot do:
+   `MissingGreenlet`. Use `selectinload` in the query, or query the child rows directly.
+   A freshly `add`ed + `flush`ed parent has *no* loaded collections.
+2. **`populate_existing=True` when re-reading after a write.** Endpoints that mutate then
+   re-read to return the result get the same identity-mapped object with its *old*
+   collection — the response silently omits the row just created. `expire_on_commit=False`
+   means the commit does not refresh it either.
+3. **`or` is not a null check.** `(select(func.max(...))).scalar() or -1` returns `-1` when
+   the real answer is `0`, because zero is falsy. Every row then got `position=0`. Use
+   `x if x is not None else default`.
 
 ---
 
