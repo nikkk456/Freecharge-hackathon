@@ -32,6 +32,15 @@ dependencies = [
     # citation's character offset back to a page — the Stage 3 "show me the source
     # line" moment.
     "pdfplumber>=0.11",
+    # --- OCR for scanned PDFs (runs locally; no document leaves the environment) ---
+    # RapidOCR is the zero-setup default: pip-only, bundled ONNX models, offline.
+    # pytesseract is the higher-accuracy path (better on RBI's italic serif) but needs
+    # the Tesseract binary installed separately — the code prefers it when present and
+    # silently falls back when it is not. pypdfium2 (rasteriser) comes via pdfplumber.
+    "rapidocr>=3.9",
+    "onnxruntime>=1.20",
+    "pytesseract>=0.3.13",
+    "pillow>=11",
     # --- Logging ---
     "structlog>=24.4",
 ]
@@ -56,6 +65,15 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    # `Depends(...)` in a default argument IS the FastAPI idiom — the framework
+    # resolves it per request, so this is not the shared-mutable-default bug B008 hunts.
+    "B008",
+    # Our enums are deliberately `(str, Enum)` rather than `StrEnum`: SQLAlchemy
+    # persists the member name, and switching changes `str(Member)` from "Class.NAME"
+    # to "NAME", which would quietly alter log output and JSON we already emit.
+    "UP042",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

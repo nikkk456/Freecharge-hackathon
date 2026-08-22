@@ -23,7 +23,7 @@ class Rcm(UUIDPkMixin, TimestampMixin, Base):
         Enum(RcmStatus, name="rcm_status"), default=RcmStatus.DRAFT
     )
 
-    rows: Mapped[list["RcmRow"]] = relationship(
+    rows: Mapped[list[RcmRow]] = relationship(
         back_populates="rcm", cascade="all, delete-orphan"
     )
 

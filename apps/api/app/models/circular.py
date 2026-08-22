@@ -32,6 +32,9 @@ class Circular(UUIDPkMixin, TimestampMixin, Base):
     page_map: Mapped[list | None] = mapped_column(JSONB)
     # Why parsing failed, shown to the human instead of a silent FAILED status.
     parse_error: Mapped[str | None] = mapped_column(Text)
+    # Why the last analysis run failed. Separate from parse_error: a circular whose
+    # text is fine but whose AI run failed must stay usable for manual review.
+    analysis_error: Mapped[str | None] = mapped_column(Text)
     status: Mapped[CircularStatus] = mapped_column(
         Enum(CircularStatus, name="circular_status"),
         default=CircularStatus.UPLOADED,
@@ -41,10 +44,10 @@ class Circular(UUIDPkMixin, TimestampMixin, Base):
         PgUUID(as_uuid=True), ForeignKey("users.id")
     )
 
-    chunks: Mapped[list["CircularChunk"]] = relationship(
+    chunks: Mapped[list[CircularChunk]] = relationship(
         back_populates="circular", cascade="all, delete-orphan"
     )
-    impacted_functions: Mapped[list["CircularFunction"]] = relationship(
+    impacted_functions: Mapped[list[CircularFunction]] = relationship(
         back_populates="circular", cascade="all, delete-orphan"
     )
 

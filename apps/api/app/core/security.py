@@ -2,7 +2,7 @@
 `get_current_user` dependency and RBAC checks stay the same."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
@@ -29,7 +29,7 @@ def verify_password(raw: str, hashed: str) -> bool:
 
 
 def create_access_token(subject: str, role: str, extra: dict[str, Any] | None = None) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,

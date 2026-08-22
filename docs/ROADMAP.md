@@ -22,6 +22,9 @@ Nobody thinks it's hallucinating.
 - [x] DB schema (via `scripts/seed.py` `create_all`; Alembic migrations deferred)
 - [x] Foundation layer seeded + exposed: 18 functions, 36 controls, 31 KCIs
 - [x] Upload + store PDF + parse to text (pdfplumber; per-page char offsets in `page_map`)
+- [x] OCR fallback for scanned pages (per-page; RapidOCR/Tesseract; ARQ worker)
+- [x] LLM provider abstraction (LiteLLM → Gemini) + structured analysis prompt
+- [x] ARQ async analysis job (summary, functions, risk rating, action items)
 - [ ] Chunk with char offsets + embed + store vectors
 - [ ] LLM provider abstraction (LiteLLM) + structured analysis prompt
 - [ ] Citation grounding + verification

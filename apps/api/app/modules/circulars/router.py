@@ -7,11 +7,18 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.circular import Circular
 from app.models.enums import CircularSource
 from app.modules.circulars import service
-from app.modules.circulars.schemas import CircularDetail, CircularPatch, CircularSummary
+from app.modules.circulars.ocr import OcrUnavailable, available_engines, get_engine
+from app.modules.circulars.schemas import (
+    CircularDetail,
+    CircularPatch,
+    CircularSummary,
+    OcrStatus,
+)
 from app.modules.circulars.service import UploadRejected
 
 router = APIRouter(prefix="/circulars", tags=["circulars"])
@@ -54,6 +61,24 @@ async def upload_circular(
     return _detail(circular)
 
 
+@router.get("/ocr-status", response_model=OcrStatus)
+async def ocr_status() -> OcrStatus:
+    """Is OCR actually usable right now? Static route — declared before /{id}."""
+    engines = available_engines()
+    try:
+        get_engine()
+        ready, detail = True, f"Ready — scanned pages will be read by {get_engine().name}."
+    except OcrUnavailable as exc:
+        ready, detail = False, str(exc)
+    return OcrStatus(
+        enabled=settings.ocr_enabled,
+        configured_engine=settings.ocr_engine,
+        available_engines=engines,
+        ready=ready,
+        detail=detail,
+    )
+
+
 @router.get("", response_model=list[CircularSummary])
 async def list_circulars(db: AsyncSession = Depends(get_db)) -> list[CircularSummary]:
     return [CircularSummary.model_validate(c) for c in await service.list_circulars(db)]
@@ -73,6 +98,16 @@ async def patch_circular(
     """Correct what the parser guessed — reference number, title, issued date."""
     circular = await _require(db, circular_id)
     return _detail(await service.patch(db, circular, changes))
+
+
+@router.post("/{circular_id}/retry", response_model=CircularDetail)
+async def retry_circular(
+    circular_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> CircularDetail:
+    """Re-run extraction — e.g. after installing an OCR engine. Runs inline so the
+    human sees the outcome rather than watching a queue."""
+    circular = await _require(db, circular_id)
+    return _detail(await service.retry(db, circular))
 
 
 @router.get("/{circular_id}/pdf")

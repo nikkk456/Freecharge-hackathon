@@ -3,10 +3,16 @@
 > **FreeCharge Hackathon** — *Categorisation of Risk Rating of Circulars, closure of action
 > items, and RCM creation.*
 
-**Stages 0–1 complete.** Infrastructure, the full data model, the **foundation layer**
-(18 functions · 36 controls · 31 KCIs), and **circular ingestion** — upload a PDF, get its
-text extracted and stored with per-page character offsets. The AI pipeline is next.
-See the design and plan in
+**Stages 0–2 complete.** Infrastructure, the full data model, the **foundation layer**
+(18 functions · 36 controls · 31 KCIs), **circular ingestion** (any PDF — typed, scanned or
+hybrid — with OCR where needed and per-page character offsets), and **AI analysis**:
+summary, impacted departments, risk rating and action items, produced as a DRAFT that a
+human must approve. Verified citations are next.
+
+> **[CLAUDE.md](CLAUDE.md) is the canonical brief** — the stage plan, the invariants, and
+> the reasoning behind each choice. Read it first.
+
+See also
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) ·
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -168,7 +174,12 @@ Use `--reset` whenever a model changes shape (there are no Alembic migrations ye
 | GET | `/api/v1/circulars` | list uploaded circulars (no `raw_text`) |
 | GET | `/api/v1/circulars/{id}` | full detail incl. `raw_text` + `page_map` |
 | PATCH | `/api/v1/circulars/{id}` | human override of ref no / title / issued date |
+| POST | `/api/v1/circulars/{id}/retry` | re-run extraction (e.g. after installing an OCR engine) |
+| GET | `/api/v1/circulars/ocr-status` | is OCR usable right now, and with which engine |
 | GET | `/api/v1/circulars/{id}/pdf` | redirect to a presigned URL for the original PDF |
+| POST | `/api/v1/circulars/{id}/analyze` | queue an AI analysis (worker); falls back to inline |
+| GET | `/api/v1/circulars/{id}/analysis` | latest analysis: summary, risk, functions, action items |
+| GET | `/api/v1/llm/status` | is a model configured, and what the fallback chain is |
 | DELETE | `/api/v1/circulars/{id}` | remove the circular and its stored PDF |
 | GET | `/docs` | interactive OpenAPI docs |
 

@@ -14,7 +14,13 @@ body {
      on its own. */
   --status-good: #0ca30c;
   --status-warning: #fab219;
+  --status-serious: #ec835a;
   --status-critical: #d03b3b;
+
+  /* Sequential ramp — one hue, light→dark. Used for confidence meters: the fill and
+     its track are steps of the same blue, so the bar reads as one scale. */
+  --seq-fill: #2a78d6;
+  --seq-track: #cde2fb;
 
   /* Chart chrome */
   --chart-surface: #ffffff;

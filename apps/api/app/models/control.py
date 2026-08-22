@@ -29,7 +29,7 @@ class Control(UUIDPkMixin, TimestampMixin, Base):
     embedding: Mapped[list[float] | None] = mapped_column(Vector(settings.active_embedding_dim))
 
     owner_function: Mapped[Function | None] = relationship()
-    kcis: Mapped[list["Kci"]] = relationship(
+    kcis: Mapped[list[Kci]] = relationship(
         back_populates="control", cascade="all, delete-orphan"
     )
 

@@ -1,20 +1,80 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import AnalysisPanel from "../components/AnalysisPanel";
 import StatusBadge from "../components/StatusBadge";
-import { api, type CircularDetail as Detail } from "../lib/api";
+import {
+  api,
+  type Analysis,
+  type CircularDetail as Detail,
+  type LlmStatus,
+  type TextSource,
+} from "../lib/api";
+import { usePolling } from "../lib/usePolling";
+
+const SOURCE_LABEL: Record<TextSource, string> = {
+  text_layer: "text layer",
+  ocr: "read by OCR",
+  empty: "no text found",
+};
 
 export default function CircularDetail() {
   const { id = "" } = useParams();
   const [doc, setDoc] = useState<Detail | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [retrying, setRetrying] = useState(false);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [llm, setLlm] = useState<LlmStatus | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const [showText, setShowText] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api
       .circular(id)
       .then(setDoc)
       .catch((e: Error) => setError(e.message));
+    api.analysis(id).then(setAnalysis).catch(() => setAnalysis(null));
   }, [id]);
+
+  useEffect(load, [load]);
+  useEffect(() => {
+    api.llmStatus().then(setLlm).catch(() => setLlm(null));
+  }, []);
+
+  const inFlight = doc?.status === "PARSING" || doc?.status === "ANALYZING";
+  usePolling(load, inFlight);
+
+  // Once text is available but nothing has been analysed, the reader wants the
+  // extracted text. Once there is an analysis, that is the headline — so collapse it.
+  useEffect(() => {
+    if (doc && !analysis) setShowText(true);
+  }, [doc, analysis]);
+
+  async function analyse() {
+    setAnalysing(true);
+    setError("");
+    try {
+      const accepted = await api.analyze(id);
+      if (!accepted.queued && accepted.status !== "ANALYZED") setError(accepted.detail);
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAnalysing(false);
+    }
+  }
+
+  async function retry() {
+    setRetrying(true);
+    setError("");
+    try {
+      setDoc(await api.retryCircular(id));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   // Slice the stored text by the page map. This is the visible proof that the
   // character offsets are real: every page below is `raw_text[start:end]`.
@@ -25,6 +85,11 @@ export default function CircularDetail() {
       text: doc.raw_text!.slice(span.char_start, span.char_end),
     }));
   }, [doc]);
+
+  const ocrPages = useMemo(
+    () => doc?.page_map?.filter((s) => s.source === "ocr").length ?? 0,
+    [doc],
+  );
 
   const hits = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,10 +144,73 @@ export default function CircularDetail() {
             <span aria-hidden className="mr-1.5">✕</span>Text extraction failed
           </h2>
           <p className="mt-1 text-sm text-gray-700">{doc.parse_error}</p>
+          <button
+            type="button"
+            disabled={retrying}
+            onClick={() => void retry()}
+            className="mt-3 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-gray-900 disabled:opacity-50"
+          >
+            {retrying ? "Retrying…" : "Retry extraction"}
+          </button>
         </div>
       )}
 
+      {doc.status === "PARSING" && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+          Reading scanned pages with OCR — a few seconds per page. This page updates itself.
+          <span className="mt-1 block text-xs text-gray-400">
+            Stuck here? The ARQ worker may not be running: <code>arq
+            app.worker.settings.WorkerSettings</code>
+          </span>
+        </div>
+      )}
+
+      {ocrPages > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
+          <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-warning)]">!</span>
+          {ocrPages} of {doc.page_count} page{doc.page_count === 1 ? "" : "s"} had no text layer
+          and {ocrPages === 1 ? "was" : "were"} read by OCR. Machine-read text can contain
+          mistakes — check quotes taken from {ocrPages === 1 ? "that page" : "those pages"}.
+        </div>
+      )}
+
+      {doc.analysis_error && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-[color:var(--status-warning)]">
+            <span aria-hidden className="mr-1.5">!</span>AI analysis unavailable
+          </h2>
+          <p className="mt-1 text-sm text-gray-700">{doc.analysis_error}</p>
+          <p className="mt-2 text-xs text-gray-500">
+            The circular is still fully reviewable by hand — the AI is never required.
+          </p>
+        </div>
+      )}
+
+      {doc.status === "ANALYZING" && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+          Reading the circular with {llm?.model ?? "the model"} — usually 15–40 seconds.
+          This page updates itself.
+        </div>
+      )}
+
+      {analysis && <AnalysisPanel analysis={analysis} />}
+
       <div className="flex flex-wrap items-center gap-3">
+        {doc.status !== "FAILED" && (
+          <button
+            type="button"
+            disabled={analysing || inFlight || !llm?.configured}
+            onClick={() => void analyse()}
+            title={llm?.configured ? undefined : llm?.detail}
+            className="rounded bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+          >
+            {analysing || doc.status === "ANALYZING"
+              ? "Analysing…"
+              : analysis
+                ? "Re-run analysis"
+                : "Analyse with AI"}
+          </button>
+        )}
         <a
           href={api.circularPdfUrl(doc.id)}
           target="_blank"
@@ -91,6 +219,13 @@ export default function CircularDetail() {
         >
           Open original PDF
         </a>
+        <button
+          type="button"
+          onClick={() => setShowText((v) => !v)}
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-gray-900"
+        >
+          {showText ? "Hide extracted text" : "Show extracted text"}
+        </button>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -115,12 +250,19 @@ export default function CircularDetail() {
         )}
       </div>
 
-      <section className="space-y-4">
+      <section className={`space-y-4 ${showText ? "" : "hidden"}`}>
         {pages.map((page) => (
           <article key={page.page} className="rounded-lg border border-gray-200 bg-white">
             <header className="flex items-baseline justify-between border-b border-gray-100 px-5 py-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Page {page.page}
+                <span
+                  className={`ml-2 font-normal normal-case tracking-normal ${
+                    page.source === "text_layer" ? "text-gray-400" : "text-gray-700"
+                  }`}
+                >
+                  {SOURCE_LABEL[page.source]}
+                </span>
               </span>
               <span className="text-xs tabular-nums text-gray-400">
                 chars {page.char_start.toLocaleString()}–{page.char_end.toLocaleString()}

@@ -55,8 +55,18 @@ class Settings(BaseSettings):
     # ---- LLM (provider-agnostic via LiteLLM) ----
     llm_provider: str = "gemini"
     llm_model: str = "gemini/gemini-3.7-flash"
-    llm_temperature: float = 0.0
-    llm_max_tokens: int = 4096
+    # Tried in order when the primary is rate-limited or returns 503. Free-tier Gemini
+    # genuinely does return "high demand" spikes, so this is not defensive padding.
+    llm_fallback_models: str = "gemini/gemini-3.6-flash,gemini/gemini-3.5-flash"
+    # 1.0, not 0.0. Lowering temperature is the usual move for structured extraction,
+    # but Google explicitly warns that temperature < 1.0 on Gemini 3 models causes
+    # "infinite loops, degraded reasoning performance, and failure on complex tasks" —
+    # and analysing an 11-page circular is exactly a complex task. Determinism is not
+    # worth degraded reasoning here; a human reviews every draft anyway.
+    llm_temperature: float = 1.0
+    llm_max_tokens: int = 8192
+    llm_timeout_seconds: int = 120
+    llm_max_attempts: int = 3  # per model, with exponential backoff
 
     gemini_api_key: str | None = None
     openai_api_key: str | None = None
@@ -78,9 +88,23 @@ class Settings(BaseSettings):
     # clear message rather than handing an empty document to the model.
     min_extracted_chars: int = 200
 
-    # ---- OCR ----
-    ocr_enabled: bool = False
-    tesseract_cmd: str | None = None
+    # ---- OCR (scanned PDFs) ----
+    # Runs entirely on this machine: a regulatory document never leaves the
+    # environment to be read. Same argument as control C-022 (data localisation).
+    ocr_enabled: bool = True
+    # "auto" prefers tesseract (better on the italic serif RBI uses) and falls back
+    # to rapidocr, which needs no system binary. Force one with "tesseract"/"rapidocr".
+    ocr_engine: str = "auto"
+    ocr_dpi: int = 200
+    # A page whose text layer is shorter than this is treated as an image and sent
+    # to OCR. Set well below a real page of prose (~1500 chars) but above a stray
+    # header that a scanner sometimes leaves behind.
+    ocr_min_page_chars: int = 80
+    # Hard stop so one enormous scan cannot occupy the worker indefinitely.
+    ocr_max_pages: int = 60
+    # Tesseract only. Add Hindi with "eng+hin" once hin.traineddata is installed.
+    ocr_languages: str = "eng"
+    tesseract_cmd: str | None = None  # explicit path if tesseract.exe is not on PATH
 
     # ---- AI thresholds (design-for-failure) ----
     # Analyses below this confidence are flagged and cannot be auto-accepted.
@@ -109,6 +133,16 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def llm_model_chain(self) -> list[str]:
+        """Primary model first, then each fallback. Duplicates removed, order kept."""
+        chain = [self.llm_model, *self.llm_fallback_models.split(",")]
+        seen: dict[str, None] = {}
+        for model in (m.strip() for m in chain):
+            if model:
+                seen.setdefault(model, None)
+        return list(seen)
 
 
 @lru_cache

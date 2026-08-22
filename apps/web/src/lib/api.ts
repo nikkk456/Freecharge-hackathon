@@ -85,10 +85,21 @@ export type CircularStatusName =
   | "PUBLISHED"
   | "FAILED";
 
+export type TextSource = "text_layer" | "ocr" | "empty";
+
 export interface PageSpan {
   page: number;
   char_start: number;
   char_end: number;
+  source: TextSource;
+}
+
+export interface OcrStatus {
+  enabled: boolean;
+  configured_engine: string;
+  available_engines: string[];
+  ready: boolean;
+  detail: string;
 }
 
 export interface CircularSummary {
@@ -100,6 +111,7 @@ export interface CircularSummary {
   status: CircularStatusName;
   page_count: number | null;
   parse_error: string | null;
+  analysis_error: string | null;
   created_at: string;
 }
 
@@ -107,6 +119,58 @@ export interface CircularDetail extends CircularSummary {
   raw_text: string | null;
   page_map: PageSpan[] | null;
   char_count: number;
+}
+
+export type RiskRating = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type PriorityName = "LOW" | "MEDIUM" | "HIGH";
+
+export interface ImpactedFunction {
+  code: string;
+  name: string;
+  confidence: number | null;
+  reasoning: string | null;
+  source: "AI" | "HUMAN";
+}
+
+export interface ActionItem {
+  id: string;
+  description: string;
+  priority: PriorityName;
+  status: string;
+  due_date: string | null;
+  owner_function_code: string | null;
+  owner_function_name: string | null;
+  source: "AI" | "HUMAN";
+}
+
+export interface Analysis {
+  id: string;
+  circular_id: string;
+  version: number;
+  status: "DRAFT" | "PUBLISHED" | "SUPERSEDED";
+  summary: string | null;
+  risk_rating: RiskRating | null;
+  risk_reasoning: string | null;
+  confidence: number | null;
+  model_name: string | null;
+  created_at: string;
+  needs_review: boolean;
+  impacted_functions: ImpactedFunction[];
+  action_items: ActionItem[];
+}
+
+export interface AnalysisRunAccepted {
+  circular_id: string;
+  status: string;
+  queued: boolean;
+  detail: string;
+}
+
+export interface LlmStatus {
+  configured: boolean;
+  model: string;
+  fallbacks: string[];
+  detail: string;
 }
 
 export const api = {
@@ -129,7 +193,18 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(changes),
     }),
+  retryCircular: (id: string) =>
+    request<CircularDetail>(`/api/v1/circulars/${id}/retry`, { method: "POST" }),
   deleteCircular: (id: string) =>
     request<void>(`/api/v1/circulars/${id}`, { method: "DELETE" }),
+  ocrStatus: () => request<OcrStatus>("/api/v1/circulars/ocr-status"),
+
+  llmStatus: () => request<LlmStatus>("/api/v1/llm/status"),
+  analysis: (circularId: string) =>
+    request<Analysis | null>(`/api/v1/circulars/${circularId}/analysis`),
+  analyze: (circularId: string) =>
+    request<AnalysisRunAccepted>(`/api/v1/circulars/${circularId}/analyze`, {
+      method: "POST",
+    }),
   circularPdfUrl: (id: string) => `${BASE}/api/v1/circulars/${id}/pdf`,
 };

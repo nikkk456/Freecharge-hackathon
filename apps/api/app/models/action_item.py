@@ -18,6 +18,11 @@ class ActionItem(UUIDPkMixin, TimestampMixin, Base):
         PgUUID(as_uuid=True), ForeignKey("circulars.id", ondelete="CASCADE"), index=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    # Which department must act. The model proposes this from the circular; a named
+    # person (owner_id) is assigned by a human in the Stage 6 tracker.
+    owner_function_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("functions.id"), index=True
+    )
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
