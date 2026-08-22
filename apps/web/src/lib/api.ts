@@ -124,12 +124,38 @@ export interface CircularDetail extends CircularSummary {
 export type RiskRating = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type PriorityName = "LOW" | "MEDIUM" | "HIGH";
 
+export type CitationMatch =
+  | "exact"
+  | "normalised"
+  | "case_insensitive"
+  | "not_found"
+  | "too_short"
+  | "empty";
+
+export interface Citation {
+  claim: string;
+  quote: string;
+  target_kind: "risk" | "function" | "action_item" | "summary";
+  target_ref: string | null;
+  char_start: number | null;
+  char_end: number | null;
+  page: number | null;
+  /** Our code located this quote in raw_text — not the model's say-so. */
+  verified: boolean;
+  match: CitationMatch;
+  occurrences: number;
+  /** The document's own wording at those offsets, which may differ from `quote`
+   *  in whitespace where the PDF wrapped the line. */
+  source_text: string | null;
+}
+
 export interface ImpactedFunction {
   code: string;
   name: string;
   confidence: number | null;
   reasoning: string | null;
   source: "AI" | "HUMAN";
+  citation: Citation | null;
 }
 
 export interface ActionItem {
@@ -141,6 +167,7 @@ export interface ActionItem {
   owner_function_code: string | null;
   owner_function_name: string | null;
   source: "AI" | "HUMAN";
+  citation: Citation | null;
 }
 
 export interface Analysis {
@@ -155,6 +182,10 @@ export interface Analysis {
   model_name: string | null;
   created_at: string;
   needs_review: boolean;
+  citations_total: number;
+  citations_verified: number;
+  risk_citation: Citation | null;
+  citations: Citation[];
   impacted_functions: ImpactedFunction[];
   action_items: ActionItem[];
 }

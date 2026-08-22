@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AnalysisPanel from "../components/AnalysisPanel";
+import HighlightedText from "../components/HighlightedText";
 import StatusBadge from "../components/StatusBadge";
 import {
   api,
   type Analysis,
   type CircularDetail as Detail,
+  type Citation,
   type LlmStatus,
   type TextSource,
 } from "../lib/api";
@@ -27,6 +29,13 @@ export default function CircularDetail() {
   const [llm, setLlm] = useState<LlmStatus | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [showText, setShowText] = useState(false);
+  const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
+
+  // Clicking a claim's source has to reveal the text before it can scroll to it.
+  function selectCitation(citation: Citation) {
+    setActiveCitation(citation);
+    setShowText(true);
+  }
 
   const load = useCallback(() => {
     api
@@ -193,7 +202,13 @@ export default function CircularDetail() {
         </div>
       )}
 
-      {analysis && <AnalysisPanel analysis={analysis} />}
+      {analysis && (
+        <AnalysisPanel
+          analysis={analysis}
+          activeCitation={activeCitation}
+          onSelectCitation={selectCitation}
+        />
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         {doc.status !== "FAILED" && (
@@ -226,6 +241,15 @@ export default function CircularDetail() {
         >
           {showText ? "Hide extracted text" : "Show extracted text"}
         </button>
+        {activeCitation && (
+          <button
+            type="button"
+            onClick={() => setActiveCitation(null)}
+            className="text-sm text-gray-500 underline hover:text-gray-900"
+          >
+            Clear highlight
+          </button>
+        )}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -269,7 +293,13 @@ export default function CircularDetail() {
               </span>
             </header>
             <pre className="overflow-x-auto whitespace-pre-wrap px-5 py-4 font-sans text-sm leading-relaxed text-gray-800">
-              {page.text}
+              <HighlightedText
+                text={page.text}
+                pageStart={page.char_start}
+                charStart={activeCitation?.char_start ?? null}
+                charEnd={activeCitation?.char_end ?? null}
+                scrollKey={`${activeCitation?.target_kind}:${activeCitation?.target_ref}`}
+              />
             </pre>
           </article>
         ))}

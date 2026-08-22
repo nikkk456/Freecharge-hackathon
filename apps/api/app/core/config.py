@@ -109,6 +109,10 @@ class Settings(BaseSettings):
     # ---- AI thresholds (design-for-failure) ----
     # Analyses below this confidence are flagged and cannot be auto-accepted.
     min_confidence_for_autoaccept: float = Field(default=0.75, ge=0, le=1)
+    # A quote shorter than this is not searched for at all: a fragment like "the bank"
+    # occurs everywhere, so locating it would prove nothing about which occurrence
+    # supports the claim. Such citations are reported unverified, not silently passed.
+    min_citation_quote_chars: int = 16
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -21,6 +21,9 @@ body {
      its track are steps of the same blue, so the bar reads as one scale. */
   --seq-fill: #2a78d6;
   --seq-track: #cde2fb;
+  /* Cited-span highlight. A step of the same blue ramp, not a status colour: this
+     marks "you are looking here", which is selection, not health. */
+  --highlight: #b7d3f6;
 
   /* Chart chrome */
   --chart-surface: #ffffff;

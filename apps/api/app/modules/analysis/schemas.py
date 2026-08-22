@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -22,15 +23,37 @@ def _blank_to_none(value: object) -> object:
     return value
 
 
+def _evidence_string(value: object) -> str:
+    """Evidence is always a string — never None — so grounding can report a missing
+    quote as an unverified citation rather than silently dropping the claim.
+
+    Some models return a list of quotes despite being asked for one; take the first
+    rather than discarding evidence over a shape mismatch.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        value = next((v for v in value if isinstance(v, str) and v.strip()), "")
+    if not isinstance(value, str):
+        return ""
+    return "" if value.strip().lower() in {"null", "none", "n/a", "-"} else value.strip()
+
+
 class ImpactedFunctionDraft(BaseModel):
     code: str
     confidence: float = 0.5
     reasoning: str | None = None
+    evidence: str = ""
 
     @field_validator("code")
     @classmethod
     def _upper(cls, v: str) -> str:
         return v.strip().upper()
+
+    @field_validator("evidence", mode="before")
+    @classmethod
+    def _evidence(cls, v: object) -> object:
+        return _evidence_string(v)
 
     @field_validator("confidence", mode="before")
     @classmethod
@@ -43,6 +66,12 @@ class ActionItemDraft(BaseModel):
     priority: Priority = Priority.MEDIUM
     owner_function: str | None = None
     due_date: date | None = None
+    evidence: str = ""
+
+    @field_validator("evidence", mode="before")
+    @classmethod
+    def _evidence(cls, v: object) -> object:
+        return _evidence_string(v)
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -70,6 +99,7 @@ class AnalysisDraft(BaseModel):
     summary: str
     risk_rating: RiskRating = RiskRating.MEDIUM
     risk_reasoning: str | None = None
+    risk_evidence: str = ""
     confidence: float = 0.5
     effective_date: date | None = None
     impacted_functions: list[ImpactedFunctionDraft] = Field(default_factory=list)
@@ -92,6 +122,11 @@ class AnalysisDraft(BaseModel):
     @classmethod
     def _empty(cls, v: object) -> object:
         return _blank_to_none(v)
+
+    @field_validator("risk_evidence", mode="before")
+    @classmethod
+    def _evidence(cls, v: object) -> object:
+        return _evidence_string(v)
 
 
 def _normalise_confidence(value: object) -> object:
@@ -128,12 +163,36 @@ def dedup_key(circular_id: uuid.UUID, description: str) -> str:
 # ---------------------------------------------------------------------------
 # What we return to the UI
 # ---------------------------------------------------------------------------
+class CitationOut(BaseModel):
+    """A claim, its quote, and what verification actually found.
+
+    `verified` means our code located the quote in `raw_text` — not that the model
+    said so. `match` records how it was found, so a reviewer can tell an exact hit
+    from one that needed case folding.
+    """
+
+    claim: str
+    quote: str
+    target_kind: Literal["risk", "function", "action_item", "summary"]
+    target_ref: str | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+    page: int | None = None
+    verified: bool = False
+    match: Literal[
+        "exact", "normalised", "case_insensitive", "not_found", "too_short", "empty"
+    ] = "empty"
+    occurrences: int = 0
+    source_text: str | None = None
+
+
 class ImpactedFunctionOut(BaseModel):
     code: str
     name: str
     confidence: float | None
     reasoning: str | None
     source: AssertionSource
+    citation: CitationOut | None = None
 
 
 class ActionItemOut(BaseModel):
@@ -147,6 +206,7 @@ class ActionItemOut(BaseModel):
     owner_function_code: str | None = None
     owner_function_name: str | None = None
     source: AssertionSource
+    citation: CitationOut | None = None
 
 
 class AnalysisOut(BaseModel):
@@ -163,6 +223,11 @@ class AnalysisOut(BaseModel):
     model_name: str | None
     created_at: datetime
     needs_review: bool = False
+    # Grounding summary — "7 of 8 claims verified" is the headline of the whole product.
+    citations_total: int = 0
+    citations_verified: int = 0
+    risk_citation: CitationOut | None = None
+    citations: list[CitationOut] = Field(default_factory=list)
     impacted_functions: list[ImpactedFunctionOut] = Field(default_factory=list)
     action_items: list[ActionItemOut] = Field(default_factory=list)
 

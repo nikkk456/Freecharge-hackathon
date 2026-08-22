@@ -8,8 +8,10 @@ Design notes, because these choices are load-bearing:
 * **The full circular text is sent.** Gemini's context is 1M tokens; an RBI circular is
   ~6k. Chunking here would buy nothing and would lose cross-references between
   paragraphs, which is exactly where obligations hide.
-* **No citations yet.** Quotes and their character offsets are Stage 3. Asking for them
-  now would produce unverified quotes, which is worse than none.
+* **Quotes, never offsets.** Every claim must carry a verbatim `evidence` string copied
+  from the circular. We deliberately do NOT ask for character positions: models invent
+  those confidently, and verifying a model's own offsets would mean trusting the thing
+  under test. `ai/grounding.py` finds the real offsets by searching for the quote.
 * **Rating criteria are spelled out.** Left to itself the model calls everything HIGH,
   which makes the rating meaningless.
 """
@@ -26,6 +28,11 @@ Rules you must follow:
 - Write plainly, for a business reader. No regulatory boilerplate, no hedging.
 - If the circular does not state something (a deadline, a penalty), say nothing rather \
 than guessing.
+- Every finding must be backed by an `evidence` quote copied WORD FOR WORD from the \
+circular text you were given. Copy the characters exactly as they appear. Do not \
+paraphrase, do not summarise, do not repair typos, do not join separate sentences, and \
+never use an ellipsis. Your quote is checked against the source automatically, and a \
+quote that cannot be found is rejected.
 - Your output is a DRAFT for a human reviewer. It is never final.
 - Reply with a single JSON object and nothing else."""
 
@@ -59,13 +66,17 @@ SCHEMA = """Return exactly this JSON shape:
   "summary": "3-5 sentences in plain English: what changed, who it binds, from when",
   "risk_rating": "LOW | MEDIUM | HIGH | CRITICAL",
   "risk_reasoning": "2-3 sentences justifying the rating against the criteria",
+  "risk_evidence": "one sentence copied word for word from the circular that most \
+supports this rating",
   "confidence": 0.0,
   "effective_date": "YYYY-MM-DD or null — the date the circular says it takes effect",
   "impacted_functions": [
     {
       "code": "F06",
       "confidence": 0.0,
-      "reasoning": "one sentence on why this department is affected"
+      "reasoning": "one sentence on why this department is affected",
+      "evidence": "one sentence copied word for word from the circular showing this \
+department is affected"
     }
   ],
   "action_items": [
@@ -73,7 +84,9 @@ SCHEMA = """Return exactly this JSON shape:
       "description": "one concrete thing the company must do, as an instruction",
       "priority": "LOW | MEDIUM | HIGH",
       "owner_function": "F06",
-      "due_date": "YYYY-MM-DD or null - only if the circular states a deadline"
+      "due_date": "YYYY-MM-DD or null - only if the circular states a deadline",
+      "evidence": "the sentence copied word for word from the circular that imposes \
+this obligation"
     }
   ]
 }
@@ -85,7 +98,10 @@ Field rules:
 - action_items: concrete and checkable ("Obtain IIBF certification for all recovery \
 agents"), never vague ("ensure compliance"). Typically 3-10. Every owner_function must \
 be one of the codes given.
-- Use only the department codes provided. Never invent a code."""
+- Use only the department codes provided. Never invent a code.
+- evidence: ONE continuous sentence, copied exactly, at least 20 characters. It must \
+appear verbatim in the circular above. If you genuinely cannot find a supporting \
+sentence, use an empty string rather than inventing or paraphrasing one."""
 
 
 def build_analysis_prompt(

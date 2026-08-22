@@ -21,6 +21,7 @@ from app.modules.circulars.parser import (
     extract_text_layer,
     pages_needing_ocr,
     render_pages,
+    strip_page_number,
 )
 from app.modules.circulars.schemas import CircularPatch
 
@@ -74,7 +75,7 @@ def ocr_and_assemble(data: bytes) -> ParsedPdf:
         image = images.get(number)
         if image is None:
             continue  # unrenderable page; it stays `empty` rather than failing the file
-        text = clean_page_text(engine.read(image))
+        text = strip_page_number(clean_page_text(engine.read(image)), number)
         if text:
             by_number[number].text = text
             by_number[number].source = "ocr"

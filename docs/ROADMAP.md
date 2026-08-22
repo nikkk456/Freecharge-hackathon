@@ -25,6 +25,8 @@ Nobody thinks it's hallucinating.
 - [x] OCR fallback for scanned pages (per-page; RapidOCR/Tesseract; ARQ worker)
 - [x] LLM provider abstraction (LiteLLM → Gemini) + structured analysis prompt
 - [x] ARQ async analysis job (summary, functions, risk rating, action items)
+- [x] Citation grounding + verification (model quotes; our code finds and checks offsets)
+- [x] Review UI with citation highlighting (click a claim → its line highlights)
 - [ ] Chunk with char offsets + embed + store vectors
 - [ ] LLM provider abstraction (LiteLLM) + structured analysis prompt
 - [ ] Citation grounding + verification

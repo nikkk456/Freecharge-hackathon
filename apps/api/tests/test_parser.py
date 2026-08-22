@@ -21,6 +21,7 @@ from app.modules.circulars.parser import (
     pages_needing_ocr,
     sniff_issued_date,
     sniff_ref_no,
+    strip_page_number,
 )
 
 
@@ -43,6 +44,48 @@ def test_clean_strips_trailing_spaces_and_collapses_blank_runs():
 def test_clean_trims_surrounding_whitespace_and_drops_nul_bytes():
     assert clean_page_text("\n\n  hello  \n\n") == "hello"
     assert clean_page_text("he\x00llo") == "hello"
+
+
+# ---------------------------------------------------------------------------
+# Page furniture — a footer dropped mid-sentence breaks a real citation
+# ---------------------------------------------------------------------------
+def test_a_trailing_page_number_is_removed():
+    assert strip_page_number("body of the page\n3", 3) == "body of the page"
+
+
+def test_a_leading_page_number_is_removed():
+    assert strip_page_number("4\nbody of the page", 4) == "body of the page"
+
+
+def test_both_ends_are_cleaned_on_the_same_page():
+    assert strip_page_number("5\nbody\n5", 5) == "body"
+
+
+def test_a_number_that_is_not_this_pages_number_is_left_alone():
+    # Only the page's own number is furniture. Anything else may be content.
+    assert strip_page_number("body\n7", 3) == "body\n7"
+
+
+def test_a_number_in_the_middle_of_the_page_is_never_touched():
+    assert strip_page_number("first line\n3\nlast line", 3) == "first line\n3\nlast line"
+
+
+def test_a_numbered_line_with_other_content_is_kept():
+    assert strip_page_number("3. A bank shall act", 3) == "3. A bank shall act"
+    assert strip_page_number("page 3", 3) == "page 3"
+
+
+def test_surrounding_whitespace_on_the_marker_line_still_matches():
+    assert strip_page_number("body\n  3  ", 3) == "body"
+
+
+def test_a_page_that_is_only_its_own_number_becomes_empty():
+    # Which correctly marks the page as needing OCR rather than as having content.
+    assert strip_page_number("9", 9) == ""
+
+
+def test_stripping_is_safe_on_empty_text():
+    assert strip_page_number("", 1) == ""
 
 
 # ---------------------------------------------------------------------------

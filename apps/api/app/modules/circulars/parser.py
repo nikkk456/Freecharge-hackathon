@@ -108,13 +108,50 @@ _LIGATURES = {
 }
 
 
-def clean_page_text(text: str) -> str:
+def normalise_characters(text: str) -> str:
+    """Character-level fixes only, no whitespace restructuring.
+
+    Split out from `clean_page_text` because citation grounding must apply exactly
+    these substitutions to a model's quote before matching it. `raw_text` has already
+    been through them, so a quote containing a curly apostrophe would otherwise never
+    match its own source line.
+    """
     for bad, good in _LIGATURES.items():
         text = text.replace(bad, good)
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def clean_page_text(text: str) -> str:
+    text = normalise_characters(text)
     text = _TRAILING_WS.sub("", text)
     text = _MANY_BLANK_LINES.sub("\n\n\n", text)
     return text.strip()
+
+
+def strip_page_number(text: str, page: int) -> str:
+    """Remove the printed page number when it sits alone on the first or last line.
+
+    PDF page furniture lands in the extracted text flow, and a footer dropped between
+    two pages cuts a sentence in half:
+
+        "...Reserve Bank of India (Commercial Banks -  3  Managing Risks in..."
+
+    A model quoting that sentence quotes it correctly and the citation then fails to
+    match, because our text has a stray "3" in the middle. Observed on a real RBI
+    circular; there is one such footer per page, so any page boundary can break a
+    citation.
+
+    Deliberately narrow: the line must be *only* digits AND equal this page's own
+    number. A bare "3" that is genuinely content will not also happen to be on page 3
+    at the very top or bottom. Runs before spans are measured, so offsets stay honest.
+    """
+    marker = str(page)
+    lines = text.split("\n")
+    if lines and lines[0].strip() == marker:
+        lines = lines[1:]
+    if lines and lines[-1].strip() == marker:
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
 
 
 # --------------------------------------------------------------------------
@@ -169,7 +206,9 @@ def extract_text_layer(data: bytes) -> list[PageText]:
                 raise PdfParseError("This PDF has no pages.")
             for index, page in enumerate(pdf.pages, start=1):
                 try:
-                    text = clean_page_text(page.extract_text() or "")
+                    text = strip_page_number(
+                        clean_page_text(page.extract_text() or ""), index
+                    )
                 except Exception as exc:  # noqa: BLE001 — one bad page must not kill the file
                     log.warning("page_text_failed", page=index, error=str(exc))
                     text = ""

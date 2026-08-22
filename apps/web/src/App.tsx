@@ -32,7 +32,9 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
-          <span className="whitespace-nowrap text-xs text-gray-400">Stage 2 · AI analysis</span>
+          <span className="whitespace-nowrap text-xs text-gray-400">
+            Stage 3 · verified citations
+          </span>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">

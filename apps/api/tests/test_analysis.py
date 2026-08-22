@@ -14,9 +14,34 @@ import pytest
 
 from app.ai.client import LlmBadOutput, _parse_json
 from app.models.enums import Priority, RiskRating
-from app.modules.analysis.schemas import AnalysisDraft, dedup_key
+from app.modules.analysis.schemas import (
+    ActionItemOut,
+    AnalysisDraft,
+    AnalysisOut,
+    CitationOut,
+    ImpactedFunctionOut,
+    LlmStatus,
+    dedup_key,
+)
 
 MINIMAL = {"summary": "A circular happened."}
+
+
+# ---------------------------------------------------------------------------
+# Response models must be fully resolvable
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "model", [CitationOut, ImpactedFunctionOut, ActionItemOut, AnalysisOut, LlmStatus]
+)
+def test_every_response_model_builds(model: type):
+    """Guards a bug that shipped: `Literal` was missing from the module's imports.
+
+    With `from __future__ import annotations` every annotation is a string, and
+    Pydantic *defers* a model it cannot resolve rather than failing at import. Unit
+    tests that never instantiate the model stayed green while the endpoint would have
+    raised on its first response. `model_rebuild(force=True)` resolves it eagerly.
+    """
+    model.model_rebuild(force=True)
 
 
 # ---------------------------------------------------------------------------

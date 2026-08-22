@@ -6,6 +6,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.client import LlmBadOutput, LlmResult, LlmUnavailable, complete_json
+from app.ai.grounding import Citation, verify_all
 from app.ai.prompts import SYSTEM, FunctionChoice, build_analysis_prompt
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -22,6 +23,7 @@ from app.modules.analysis.schemas import (
     ActionItemOut,
     AnalysisDraft,
     AnalysisOut,
+    CitationOut,
     ImpactedFunctionOut,
     dedup_key,
 )
@@ -138,7 +140,23 @@ async def _store(
     db.add(analysis)
 
     await _replace_impacted_functions(db, circular, draft, by_code)
-    await _upsert_action_items(db, circular, draft, by_code)
+    rows_by_key = await _upsert_action_items(db, circular, draft, by_code)
+
+    # Grounding runs last: it needs the action-item ids, which only exist after the
+    # flush above. Every claim the UI shows gets a citation, verified or not.
+    report = verify_all(
+        _build_citations(circular, draft, rows_by_key),
+        circular.raw_text or "",
+        circular.page_map,
+    )
+    analysis.citations = [c.as_dict() for c in report.citations]
+    log.info(
+        "citations_verified",
+        circular_id=str(circular.id),
+        total=report.total,
+        verified=report.verified,
+        unverified=[c.match for c in report.citations if not c.verified],
+    )
 
     # The model's title beats a filename, but must not clobber a human's wording.
     # A filename stem has no spaces; a real title always does.
@@ -184,9 +202,51 @@ async def _replace_impacted_functions(
         )
 
 
+def _build_citations(
+    circular: Circular, draft: AnalysisDraft, rows_by_key: dict[str, ActionItem]
+) -> list[Citation]:
+    """One citation per claim the UI will show, before verification runs.
+
+    Claims with no evidence are still included — as citations that will come back
+    unverified. Dropping them would hide the fact that the model asserted something it
+    could not support, which is exactly what a reviewer needs to see.
+    """
+    citations: list[Citation] = [
+        Citation(
+            claim=draft.risk_reasoning or f"Risk rating: {draft.risk_rating.value}",
+            quote=draft.risk_evidence,
+            target_kind="risk",
+        )
+    ]
+
+    for item in draft.impacted_functions:
+        citations.append(
+            Citation(
+                claim=item.reasoning or f"{item.code} is impacted",
+                quote=item.evidence,
+                target_kind="function",
+                target_ref=item.code,
+            )
+        )
+
+    for item in draft.action_items:
+        description = item.description.strip()
+        row = rows_by_key.get(dedup_key(circular.id, description)) if description else None
+        citations.append(
+            Citation(
+                claim=description,
+                quote=item.evidence,
+                target_kind="action_item",
+                target_ref=str(row.id) if row else None,
+            )
+        )
+
+    return citations
+
+
 async def _upsert_action_items(
     db: AsyncSession, circular: Circular, draft: AnalysisDraft, by_code: dict[str, Function]
-) -> None:
+) -> dict[str, ActionItem]:
     """Replace the AI's untouched action items, and never touch anyone else's.
 
     Re-running must not accumulate near-duplicates. `dedup_key` alone cannot prevent
@@ -240,6 +300,16 @@ async def _upsert_action_items(
             )
         )
 
+    # Flush so every row has an id, then hand back the rows keyed by dedup_key — the
+    # citation builder needs those ids to point a quote at a specific action item.
+    await db.flush()
+    return {
+        row.dedup_key: row
+        for row in (
+            await db.execute(select(ActionItem).where(ActionItem.circular_id == circular.id))
+        ).scalars()
+    }
+
 
 # ---------------------------------------------------------------------------
 # Reads
@@ -286,6 +356,11 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
         )
     ).all()
 
+    citations = [CitationOut.model_validate(row) for row in (analysis.citations or [])]
+    by_function = {c.target_ref: c for c in citations if c.target_kind == "function"}
+    by_action = {c.target_ref: c for c in citations if c.target_kind == "action_item"}
+    risk_citation = next((c for c in citations if c.target_kind == "risk"), None)
+
     return AnalysisOut(
         id=analysis.id,
         circular_id=analysis.circular_id,
@@ -298,6 +373,10 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
         model_name=analysis.model_name,
         created_at=analysis.created_at,
         needs_review=(analysis.confidence or 0) < settings.min_confidence_for_autoaccept,
+        citations_total=len(citations),
+        citations_verified=sum(1 for c in citations if c.verified),
+        risk_citation=risk_citation,
+        citations=citations,
         impacted_functions=[
             ImpactedFunctionOut(
                 code=function.code,
@@ -305,6 +384,7 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
                 confidence=link.confidence,
                 reasoning=link.reasoning,
                 source=link.source,
+                citation=by_function.get(function.code),
             )
             for link, function in functions
         ],
@@ -318,6 +398,7 @@ async def build_output(db: AsyncSession, analysis: AIAnalysis) -> AnalysisOut:
                 owner_function_code=owner.code if owner else None,
                 owner_function_name=owner.name if owner else None,
                 source=item.source,
+                citation=by_action.get(str(item.id)),
             )
             for item, owner in items
         ],

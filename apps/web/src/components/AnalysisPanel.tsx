@@ -1,6 +1,7 @@
+import CitationChip from "./CitationChip";
 import ConfidenceMeter from "./ConfidenceMeter";
 import RiskBadge from "./RiskBadge";
-import type { Analysis, PriorityName } from "../lib/api";
+import type { Analysis, Citation, PriorityName } from "../lib/api";
 
 const PRIORITY_STYLE: Record<PriorityName, string> = {
   HIGH: "font-semibold text-gray-900",
@@ -8,7 +9,22 @@ const PRIORITY_STYLE: Record<PriorityName, string> = {
   LOW: "text-gray-500",
 };
 
-export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
+function sameCitation(a: Citation | null, b: Citation | null): boolean {
+  return !!a && !!b && a.target_kind === b.target_kind && a.target_ref === b.target_ref;
+}
+
+export default function AnalysisPanel({
+  analysis,
+  activeCitation,
+  onSelectCitation,
+}: {
+  analysis: Analysis;
+  activeCitation: Citation | null;
+  onSelectCitation: (citation: Citation) => void;
+}) {
+  const allVerified =
+    analysis.citations_total > 0 && analysis.citations_verified === analysis.citations_total;
+
   return (
     <div className="space-y-4">
       <section className="rounded-lg border border-gray-200 bg-white">
@@ -27,6 +43,31 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
         </header>
 
         <div className="space-y-4 px-5 py-4">
+          {analysis.citations_total > 0 && (
+            <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+              <p className="text-xs text-gray-700">
+                <span
+                  aria-hidden
+                  className="mr-1.5 font-bold"
+                  style={{
+                    color: allVerified ? "var(--status-good)" : "var(--status-warning)",
+                  }}
+                >
+                  {allVerified ? "✓" : "!"}
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {analysis.citations_verified} of {analysis.citations_total}
+                </span>{" "}
+                claims traced to a line that is verifiably in this circular.
+                {!allVerified && " The rest are marked unverified below."}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Verification is done by matching the quote against the stored text — not by
+                asking the model whether it was right.
+              </p>
+            </div>
+          )}
+
           {analysis.needs_review && (
             <p className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
               <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-warning)]">
@@ -40,9 +81,16 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
 
           {analysis.risk_reasoning && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Why this rating
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Why this rating
+                </h3>
+                <CitationChip
+                  citation={analysis.risk_citation}
+                  active={sameCitation(activeCitation, analysis.risk_citation)}
+                  onSelect={onSelectCitation}
+                />
+              </div>
               <p className="mt-1 text-sm leading-relaxed text-gray-700">
                 {analysis.risk_reasoning}
               </p>
@@ -70,7 +118,14 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
                   <span className="mr-2 tabular-nums text-gray-400">{f.code}</span>
                   {f.name}
                 </span>
-                <ConfidenceMeter value={f.confidence} />
+                <span className="flex items-center gap-3">
+                  <ConfidenceMeter value={f.confidence} />
+                  <CitationChip
+                    citation={f.citation}
+                    active={sameCitation(activeCitation, f.citation)}
+                    onSelect={onSelectCitation}
+                  />
+                </span>
               </div>
               {f.reasoning && (
                 <p className="mt-1 max-w-3xl text-sm text-gray-600">{f.reasoning}</p>
@@ -96,6 +151,7 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
             <thead className="text-xs uppercase tracking-wide text-gray-500">
               <tr className="border-b border-gray-100">
                 <th className="px-5 py-2 font-medium">What must be done</th>
+                <th className="px-5 py-2 font-medium">Source</th>
                 <th className="px-5 py-2 font-medium">Owner</th>
                 <th className="px-5 py-2 font-medium">Priority</th>
                 <th className="px-5 py-2 font-medium">Due</th>
@@ -106,6 +162,13 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
                 <tr key={item.id} className="border-b border-gray-100 align-top last:border-0">
                   <td className={`px-5 py-3 ${PRIORITY_STYLE[item.priority]}`}>
                     {item.description}
+                  </td>
+                  <td className="px-5 py-3">
+                    <CitationChip
+                      citation={item.citation}
+                      active={sameCitation(activeCitation, item.citation)}
+                      onSelect={onSelectCitation}
+                    />
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 text-gray-700">
                     {item.owner_function_code ? (
@@ -127,7 +190,7 @@ export default function AnalysisPanel({ analysis }: { analysis: Analysis }) {
               ))}
               {analysis.action_items.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-4 text-sm text-gray-500">
+                  <td colSpan={5} className="px-5 py-4 text-sm text-gray-500">
                     No action items were extracted.
                   </td>
                 </tr>

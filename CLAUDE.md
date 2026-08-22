@@ -39,8 +39,8 @@ the next stage. Ask questions *before* coding, not during.
 | 0 | Empty stack stood up: DB, backend, webpage | ✅ done | Page loads showing live seeded data |
 | 1 | Upload PDF → text extracted, stored, shown | ✅ done | Upload a circular, read its text on screen |
 | 2 | AI analysis: summary, impacted function, risk rating, action items | ✅ done | Model output appears for an uploaded circular |
-| 3 | **Verified citations** — every claim carries its exact source line | ▶ next | Click a claim → its source line highlights |
-| 4 | Review screen — human edits and approves the draft | ⬜ | Change the risk rating, press Approve |
+| 3 | **Verified citations** — every claim carries its exact source line | ✅ done | Click a claim → its source line highlights |
+| 4 | Review screen — human edits and approves the draft | ▶ next | Change the risk rating, press Approve |
 | 5 | RCM — match AI risks to the existing control library | ⬜ | A risk↔control table is produced |
 | 6 | Tracker — action items with owner, due date, status, reminders | ⬜ | An item shows "in progress" |
 
@@ -96,12 +96,42 @@ Things that are easy to get wrong here, and how they are handled:
 
 Costs about 6k input / 2.5k output tokens and 20–70 s per circular — far inside free tier.
 
-### Stage 3 — Verified citations ▶ NEXT
-The model must return `{claim, quote, char_start, char_end}`. The worker checks the quote
-against `raw_text` at those offsets, sets `verified: true/false`, and resolves the offset
-to a page via `page_for_offset()`. Unverified citations are surfaced, not hidden.
+### Stage 3 — Verified citations ✅
+Every claim the UI shows — the risk rating, each impacted department, each action item —
+carries a citation stored in `ai_analyses.citations`. Live result on the RBI recovery
+circular: **14 of 14 verified**.
 
-### Stage 4 — Human review
+**The model returns a quote, never an offset.** This inverts what `ARCHITECTURE.md`
+originally described, deliberately. Asking a model for `char_start`/`char_end` and then
+checking those numbers means trusting the thing under test — models invent plausible
+offsets freely. Quoting is the one part of this they are reliable at, so it is the only
+part we ask for. `ai/grounding.py` searches `raw_text` for the quote and produces the
+offsets itself.
+
+**Matching cannot be a substring search.** PDFs wrap sentences, so a model quoting one
+sentence has spaces where `raw_text` has newlines. `normalise_with_map()` builds a
+whitespace-collapsed copy *plus an index map* back to true offsets, and also rejoins
+words hyphenated across a line break. Tiers, each recorded in `match`: `exact` →
+`normalised` → `case_insensitive` → `not_found`.
+
+- **A quote under `MIN_CITATION_QUOTE_CHARS` (16) is refused, not searched.** "the bank"
+  occurs everywhere; locating it proves nothing about which occurrence supports the claim.
+- **Claims with no evidence still produce a citation**, marked unverified. Dropping them
+  would hide that the model asserted something it could not support.
+- **`source_text` is the document's wording**, not the model's — it may differ in
+  whitespace, which is exactly what proves we found the real line.
+- **Page furniture is stripped at parse time.** A page-number footer lands mid-sentence in
+  the extracted flow (`"...(Commercial Banks - 3 Managing Risks in Outsourcing)..."`) and
+  breaks any citation spanning that page boundary. `strip_page_number()` removes a bare
+  number that is alone on the page's first or last line *and* equals that page's own
+  number — narrow enough that it cannot eat content. This took the real circular from
+  11/12 to 14/14.
+
+**When debugging citations on Windows, read JSON as UTF-8.** `json.load(open(path))` uses
+cp1252, so `₹` becomes three characters and every offset after it appears shifted by two.
+That cost an hour chasing a bug that did not exist.
+
+### Stage 4 — Human review ▶ NEXT
 Edit any field, see confidence, override the risk rating, publish. Publishing sets
 `reviewed_by` and writes an audit row. `min_confidence_for_autoaccept` (0.75) marks
 low-confidence analyses as review-required.
@@ -152,7 +182,7 @@ unreachable, not when the worker is merely absent).
 cd apps\api
 python -m scripts.seed              # upsert seed data (idempotent)
 python -m scripts.seed --reset      # DROP the schema and rebuild
-python -m pytest                    # 71 tests; DB-backed ones skip if Postgres is down
+python -m pytest                    # 115 tests; DB-backed ones skip if Postgres is down
 python -m ruff check app tests scripts
 ```
 
@@ -178,7 +208,7 @@ never put a real value in it, and never write a "paste your key here" marker the
 apps/api/app/
   core/        config · security (JWT/bcrypt) · logging (structlog) · storage (S3) · deps (RBAC)
   models/      all 13 ORM tables
-  ai/          client (LiteLLM, retry + fallback) · prompts   ← all vendor specifics stop here
+  ai/          client (LiteLLM, retry + fallback) · prompts · grounding (citation verification)
   modules/
     library/   read-only functions/controls/KCIs        (Stage 0)
     circulars/ upload · parser · ocr · service · router (Stage 1)
@@ -187,7 +217,8 @@ apps/api/app/
   api/router.py  ← plug every module router in here
 apps/web/src/
   lib/api.ts   typed client · usePolling.ts
-  components/  StatTile · RagBar · StatusChip · StatusBadge · RiskBadge · ConfidenceMeter · AnalysisPanel
+  components/  StatTile · RagBar · StatusChip · StatusBadge · RiskBadge · ConfidenceMeter
+               AnalysisPanel · CitationChip · HighlightedText
   pages/       Home (foundation) · Circulars · CircularDetail
 ```
 

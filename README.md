@@ -3,11 +3,13 @@
 > **FreeCharge Hackathon** — *Categorisation of Risk Rating of Circulars, closure of action
 > items, and RCM creation.*
 
-**Stages 0–2 complete.** Infrastructure, the full data model, the **foundation layer**
+**Stages 0–3 complete.** Infrastructure, the full data model, the **foundation layer**
 (18 functions · 36 controls · 31 KCIs), **circular ingestion** (any PDF — typed, scanned or
-hybrid — with OCR where needed and per-page character offsets), and **AI analysis**:
-summary, impacted departments, risk rating and action items, produced as a DRAFT that a
-human must approve. Verified citations are next.
+hybrid — with OCR where needed and per-page character offsets), **AI analysis** (summary,
+impacted departments, risk rating, action items, produced as a DRAFT), and **verified
+citations**: every claim carries a quote that our own code located in the stored text, with
+the page and character span it occupies. Click a claim, see the line light up in the
+circular. The human review screen is next.
 
 > **[CLAUDE.md](CLAUDE.md) is the canonical brief** — the stage plan, the invariants, and
 > the reasoning behind each choice. Read it first.
