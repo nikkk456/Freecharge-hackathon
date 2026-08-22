@@ -121,9 +121,16 @@ npm install
 
 ```powershell
 cd apps\api
-python -m pytest                     # 188 passed
+python -m pytest                     # 196 passed — includes a check that every
+                                     # imported package is declared in pyproject.toml
 python -c "from app.core.config import settings; print('key set:', bool(settings.gemini_api_key))"
 ```
+
+> `pip install -e ".[dev]"` installs **everything** the app needs, including the LLM
+> gateway and the OCR models. If you ever see `No module named '<something>'`, that is a
+> bug in `pyproject.toml`, not something to fix by hand with `pip install` — add it to the
+> dependency list so the next clone works too. `tests/test_dependencies_declared.py`
+> fails when an import is missing from that list.
 
 <details>
 <summary><b>Troubleshooting</b></summary>
@@ -132,7 +139,9 @@ python -c "from app.core.config import settings; print('key set:', bool(settings
 |---|---|
 | `connection refused` on port 5432 | Docker isn't up: `docker compose up -d db redis minio` |
 | Tests skip with "no database" | Same — the DB-backed tests need Postgres running |
+| `No module named 'litellm'` (or any package) | Dependencies are out of date or were never installed. Re-run `pip install -e ".[dev]"` **inside the activated venv**. If it still fails, the package is missing from `pyproject.toml` — add it there rather than installing it ad-hoc |
 | `No API key for the configured model` | `GEMINI_API_KEY` is empty in `.env`, or the API was started before you set it. Restart the API |
+| Works for you, fails for a colleague | Almost always a package installed locally but not declared. `python -m pytest tests/test_dependencies_declared.py` catches it |
 | Upload sits at `PARSING` forever | The ARQ worker isn't running — see below |
 | Analysis sits at `ANALYZING` forever | Same. The worker is a separate process and does **not** hot-reload |
 | `503 high demand` from Gemini | Free-tier spike. The client retries and falls back automatically; nothing to do |

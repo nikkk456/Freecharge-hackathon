@@ -25,6 +25,11 @@ dependencies = [
     "redis>=5.2",
     # --- Object storage ---
     "boto3>=1.35",
+    "botocore>=1.35",                 # `from botocore.client import Config` in core/storage.py
+    # --- LLM gateway (provider-agnostic) ---
+    # Everything vendor-specific stops at app/ai/client.py. Swap LLM_MODEL to point at
+    # OpenAI, Anthropic, Azure or a local Ollama and no other code changes.
+    "litellm>=1.97",
     # --- PDF text extraction ---
     # pdfplumber (MIT, pure Python via pdfminer.six). Chosen over PyMuPDF, which is
     # AGPL-3.0 and would need a paid Artifex licence to ship inside a bank; and over
@@ -32,6 +37,10 @@ dependencies = [
     # citation's character offset back to a page — the Stage 3 "show me the source
     # line" moment.
     "pdfplumber>=0.11",
+    # pypdfium2 rasterises pages for OCR. It arrives via pdfplumber anyway, but we
+    # import it directly, so it is declared directly — a transitive dependency is not
+    # a promise.
+    "pypdfium2>=4.30",
     # --- OCR for scanned PDFs (runs locally; no document leaves the environment) ---
     # RapidOCR is the zero-setup default: pip-only, bundled ONNX models, offline.
     # pytesseract is the higher-accuracy path (better on RBI's italic serif) but needs
@@ -41,13 +50,15 @@ dependencies = [
     "onnxruntime>=1.20",
     "pytesseract>=0.3.13",
     "pillow>=11",
+    "numpy>=1.26",                    # OCR passes page images to rapidocr as arrays
     # --- Logging ---
     "structlog>=24.4",
 ]
 
-# NOTE: feature-specific libraries (LLM gateway, orchestration, PDF/OCR parsing,
-# embeddings) are intentionally NOT listed. Add them when you build the feature that
-# needs them, e.g.: litellm, langgraph, pdfplumber, sentence-transformers.
+# Every module imported anywhere under app/ or scripts/ must be listed above, even
+# when it would arrive as a transitive dependency of something else. A fresh clone
+# installs from this file and nothing else, and a missing entry only shows up as an
+# ImportError on the machine of whoever cloned it.
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13"]

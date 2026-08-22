@@ -240,8 +240,21 @@ unreachable, not when the worker is merely absent).
 cd apps\api
 python -m scripts.seed              # upsert seed data (idempotent)
 python -m scripts.seed --reset      # DROP the schema and rebuild
-python -m pytest                    # 188 tests; DB-backed ones skip if Postgres is down
+python -m pytest                    # 196 tests; DB-backed ones skip if Postgres is down
 python -m ruff check app tests scripts
+```
+
+**Never `pip install` a package without adding it to `pyproject.toml`.** This already
+broke a colleague's clone: `litellm` was installed ad-hoc during Stage 2 and never
+declared, so everything worked here and `No module named 'litellm'` greeted the first
+person who cloned the repo. Three more (`pypdfium2`, `numpy`, `botocore`) were being
+imported directly while arriving only as transitive dependencies — a transitive
+dependency is not a promise. `tests/test_dependencies_declared.py` now fails when an
+import is undeclared. Verify a real change with a clean venv, not with your own:
+
+```powershell
+python -m venv $env:TEMP\clean; & $env:TEMP\clean\Scripts\pip install -e ".[dev]"
+& $env:TEMP\clean\Scripts\python -m pytest
 ```
 
 **The worker does not hot-reload.** After changing anything it imports, restart it — the
