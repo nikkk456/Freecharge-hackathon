@@ -1,7 +1,14 @@
+import { Check, Grid2x2, Loader2, Plus, RotateCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import CitationChip from "./CitationChip";
-import CoverageChip, { CoverageBar } from "./CoverageChip";
-import StatusChip from "./StatusChip";
+import Callout from "@/components/Callout";
+import CitationChip from "@/components/CitationChip";
+import CoverageChip, { CoverageBar } from "@/components/CoverageChip";
+import StatusChip from "@/components/StatusChip";
+import VerificationBadge from "@/components/VerificationBadge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   api,
   CAN_PUBLISH,
@@ -9,8 +16,8 @@ import {
   type ControlOut,
   type CoverageName,
   type Rcm,
-} from "../lib/api";
-import { useAuth } from "../lib/auth";
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 const COVERAGES: CoverageName[] = ["COVERED", "PARTIAL", "GAP"];
 
@@ -56,140 +63,129 @@ export default function RcmPanel({
 
   if (!rcm) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white px-5 py-8 text-center">
-        <h2 className="text-sm font-semibold text-gray-900">No Risk &amp; Control Matrix yet</h2>
-        <p className="mx-auto mt-1 max-w-lg text-sm text-gray-600">
-          Match each risk this circular creates against the existing control library, and
-          surface the ones nothing covers.
-        </p>
-        <button
-          type="button"
-          disabled={building || !canBuild}
-          onClick={onBuild}
-          title={canBuild ? undefined : "Analyse this circular first"}
-          className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-        >
-          {building ? "Building…" : "Build the matrix"}
-        </button>
-        {error && (
-          <p className="mt-3 text-sm text-[color:var(--status-critical)]">{error}</p>
-        )}
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center py-10 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full border border-border bg-muted/60">
+            <Grid2x2 aria-hidden className="size-[18px] text-muted-foreground" />
+          </span>
+          <h2 className="mt-3.5 text-sm font-semibold text-foreground">
+            No Risk &amp; Control Matrix yet
+          </h2>
+          <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
+            Match each risk this circular creates against the existing control library, and
+            surface the ones nothing covers.
+          </p>
+          <Button
+            disabled={building || !canBuild}
+            onClick={onBuild}
+            title={canBuild ? undefined : "Analyse this circular first"}
+            className="mt-4"
+          >
+            {building && <Loader2 className="animate-spin" />}
+            {building ? "Building…" : "Build the matrix"}
+          </Button>
+          {error && (
+            <p className="mt-3 text-sm text-status-critical">{error}</p>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
   const editable = rcm.editable;
-  const allVerified =
-    rcm.citations_total > 0 && rcm.citations_verified === rcm.citations_total;
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded border border-gray-200 bg-white p-3 text-sm text-[color:var(--status-critical)]">
-          <span aria-hidden className="mr-1.5 font-bold">✕</span>
-          {error}
-        </div>
-      )}
+      {error && <Callout tone="critical">{error}</Callout>}
 
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-gray-900">Risk &amp; Control Matrix</h2>
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2.5">
+            <CardTitle>Risk &amp; Control Matrix</CardTitle>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
               {rcm.status}
             </span>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             disabled={building || busy || !editable}
             onClick={onBuild}
             title={editable ? undefined : "Published matrices are frozen"}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-gray-900 disabled:opacity-50"
           >
+            {building ? <Loader2 className="animate-spin" /> : <RotateCw />}
             {building ? "Rebuilding…" : "Rebuild"}
-          </button>
-        </header>
+          </Button>
+        </CardHeader>
 
-        <div className="space-y-4 px-5 py-4">
+        <CardContent className="space-y-4">
           <CoverageBar covered={rcm.covered} partial={rcm.partial} gaps={rcm.gaps} />
 
           {rcm.gaps > 0 && (
-            <p className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-              <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-critical)]">
-                ✕
-              </span>
-              <span className="font-semibold tabular-nums">{rcm.gaps}</span> of{" "}
-              {rcm.rows.length} risks have <strong>no existing control</strong> behind them.
-              Those are the ones that create work.
-            </p>
+            <Callout tone="critical">
+              <span className="font-semibold tabular-nums text-foreground">{rcm.gaps}</span> of{" "}
+              {rcm.rows.length} risks have{" "}
+              <strong className="font-semibold text-foreground">no existing control</strong>{" "}
+              behind them. Those are the ones that create work.
+            </Callout>
           )}
 
-          {rcm.citations_total > 0 && (
-            <p className="text-xs text-gray-600">
-              <span
-                aria-hidden
-                className="mr-1.5 font-bold"
-                style={{ color: allVerified ? "var(--status-good)" : "var(--status-warning)" }}
-              >
-                {allVerified ? "✓" : "!"}
-              </span>
-              <span className="font-semibold tabular-nums">
-                {rcm.citations_verified} of {rcm.citations_total}
-              </span>{" "}
-              risks traced to a line that is verifiably in this circular.
-            </p>
-          )}
+          <VerificationBadge
+            verified={rcm.citations_verified}
+            total={rcm.citations_total}
+            noun="risks"
+          />
 
-          <p className="text-xs text-gray-400">
-            Matched against all {controls.length} controls in the library by{" "}
-            {rcm.model_name}
+          <p className="text-xs text-muted-foreground/80">
+            Matched against all {controls.length} controls in the library by {rcm.model_name}
             {rcm.reviewed_by_name && ` · approved by ${rcm.reviewed_by_name}`}
           </p>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Risks <span className="text-gray-400">({rcm.rows.length})</span>
-          </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Risks{" "}
+            <span className="font-normal tabular-nums text-muted-foreground">
+              ({rcm.rows.length})
+            </span>
+          </CardTitle>
           {editable && (
-            <button
-              type="button"
-              onClick={() => setAdding((v) => !v)}
-              className="rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:border-gray-900"
-            >
+            <Button size="xs" variant="outline" onClick={() => setAdding((v) => !v)}>
+              {adding ? <X /> : <Plus />}
               {adding ? "Cancel" : "Add a risk"}
-            </button>
+            </Button>
           )}
-        </header>
+        </CardHeader>
 
         {adding && (
-          <div className="flex flex-wrap items-end gap-2 border-b border-gray-100 bg-gray-50 px-5 py-3">
+          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-muted/40 px-5 py-3">
             <label className="min-w-[16rem] flex-1">
-              <span className="text-xs text-gray-600">Risk</span>
-              <input
+              <span className="text-xs font-medium text-muted-foreground">Risk</span>
+              <Input
                 value={draft.risk}
                 onChange={(e) => setDraft({ ...draft, risk: e.target.value })}
                 placeholder="What could go wrong"
-                className="mt-1 w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm outline-none focus:border-gray-900"
+                className="mt-1 h-8"
               />
             </label>
             <label className="min-w-[14rem] flex-1">
-              <span className="text-xs text-gray-600">Control</span>
-              <input
+              <span className="text-xs font-medium text-muted-foreground">Control</span>
+              <Input
                 value={draft.control}
                 onChange={(e) => setDraft({ ...draft, control: e.target.value })}
                 placeholder="What the company does about it"
-                className="mt-1 w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm outline-none focus:border-gray-900"
+                className="mt-1 h-8"
               />
             </label>
             <label>
-              <span className="text-xs text-gray-600">Existing control</span>
-              <select
+              <span className="text-xs font-medium text-muted-foreground">Existing control</span>
+              <Select
+                size="sm"
                 value={draft.code}
                 onChange={(e) => setDraft({ ...draft, code: e.target.value })}
-                className="mt-1 block rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-gray-900"
+                className="mt-1 w-48"
               >
                 <option value="">None — this is a gap</option>
                 {controls.map((c) => (
@@ -197,10 +193,10 @@ export default function RcmPanel({
                     {c.code}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <button
-              type="button"
+            <Button
+              size="sm"
               disabled={busy || draft.risk.trim().length < 3}
               onClick={() =>
                 void run(async () => {
@@ -214,35 +210,44 @@ export default function RcmPanel({
                   setAdding(false);
                 })
               }
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
+              <Check />
               Add
-            </button>
+            </Button>
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-gray-500">
-              <tr className="border-b border-gray-100">
-                <th className="px-5 py-2 font-medium">Risk</th>
-                <th className="px-5 py-2 font-medium">Source</th>
-                <th className="px-5 py-2 font-medium">Coverage</th>
-                <th className="px-5 py-2 font-medium">Existing control</th>
-                {editable && <th className="px-5 py-2 font-medium sr-only">Actions</th>}
+        <div className="relative overflow-x-auto">
+          <table className="w-full min-w-[58rem] text-left text-sm">
+            <thead className="text-2xs uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="min-w-[22rem] px-5 py-2 font-semibold">Risk</th>
+                <th className="px-5 py-2 font-semibold">Source</th>
+                <th className="px-5 py-2 font-semibold">Coverage</th>
+                <th className="px-5 py-2 font-semibold">Existing control</th>
+                {editable && (
+                  <th className="px-5 py-2 font-semibold">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {rcm.rows.map((row) => (
-                <tr key={row.id} className="border-b border-gray-100 align-top last:border-0">
-                  <td className="px-5 py-3">
-                    <div className="text-gray-900">{row.risk_text}</div>
-                    <div className="mt-0.5 text-xs text-gray-500">{row.control_text}</div>
+                <tr
+                  key={row.id}
+                  className="border-b border-border align-top transition-colors last:border-0 hover:bg-muted/40"
+                >
+                  <td className="w-[26rem] min-w-[22rem] px-5 py-3 align-top">
+                    <div className="text-foreground">{row.risk_text}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{row.control_text}</div>
                     {row.reasoning && (
-                      <div className="mt-1 max-w-xl text-xs text-gray-400">{row.reasoning}</div>
+                      <div className="mt-1 max-w-xl text-xs text-muted-foreground/80">
+                        {row.reasoning}
+                      </div>
                     )}
                     {row.source === "HUMAN" && (
-                      <span className="mt-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                      <span className="mt-1.5 inline-block rounded bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
                         added by reviewer
                       </span>
                     )}
@@ -260,7 +265,8 @@ export default function RcmPanel({
                   </td>
                   <td className="px-5 py-3">
                     {editable ? (
-                      <select
+                      <Select
+                        size="sm"
                         aria-label={`Coverage for: ${row.risk_text.slice(0, 40)}`}
                         value={row.coverage}
                         disabled={busy}
@@ -271,21 +277,22 @@ export default function RcmPanel({
                             }),
                           )
                         }
-                        className="rounded border border-gray-300 px-1.5 py-1 text-xs outline-none focus:border-gray-900"
+                        className="w-32"
                       >
                         {COVERAGES.map((c) => (
                           <option key={c} value={c}>
                             {c}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
                       <CoverageChip coverage={row.coverage} />
                     )}
                   </td>
                   <td className="px-5 py-3">
                     {editable ? (
-                      <select
+                      <Select
+                        size="sm"
                         aria-label={`Control for: ${row.risk_text.slice(0, 40)}`}
                         value={row.control?.code ?? ""}
                         disabled={busy}
@@ -296,7 +303,7 @@ export default function RcmPanel({
                             }),
                           )
                         }
-                        className="rounded border border-gray-300 px-1.5 py-1 text-xs outline-none focus:border-gray-900"
+                        className="w-32"
                       >
                         <option value="">None — gap</option>
                         {controls.map((c) => (
@@ -304,28 +311,28 @@ export default function RcmPanel({
                             {c.code}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : row.control ? (
                       <div>
-                        <div className="whitespace-nowrap text-gray-900">
-                          <span className="mr-1.5 tabular-nums text-gray-400">
+                        <div className="whitespace-nowrap text-foreground">
+                          <span className="mr-1.5 tabular-nums text-muted-foreground">
                             {row.control.code}
                           </span>
                           {row.control.name}
                         </div>
                         {row.control.owner_function_code && (
-                          <div className="mt-0.5 text-xs text-gray-500">
+                          <div className="mt-0.5 text-xs text-muted-foreground">
                             {row.control.owner_function_code} {row.control.owner_function_name}
                           </div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400">None</span>
+                      <span className="text-muted-foreground">None</span>
                     )}
                     {row.control?.kci_status && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <StatusChip status={row.control.kci_status} />
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {row.control.kci_name}
                           {row.control.kci_current_value &&
                             ` · ${row.control.kci_current_value} vs ${row.control.kci_target}`}
@@ -335,21 +342,24 @@ export default function RcmPanel({
                   </td>
                   {editable && (
                     <td className="whitespace-nowrap px-5 py-3 text-right">
-                      <button
-                        type="button"
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
                         disabled={busy}
+                        aria-label="Remove this risk"
+                        title="Remove"
                         onClick={() => void run(() => api.deleteRcmRow(row.id))}
-                        className="text-xs text-gray-400 hover:text-[color:var(--status-critical)]"
+                        className="hover:text-status-critical"
                       >
-                        Remove
-                      </button>
+                        <Trash2 />
+                      </Button>
                     </td>
                   )}
                 </tr>
               ))}
               {rcm.rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-4 text-sm text-gray-500">
+                  <td colSpan={5} className="px-5 py-4 text-sm text-muted-foreground">
                     No risks in this matrix yet.
                   </td>
                 </tr>
@@ -357,35 +367,38 @@ export default function RcmPanel({
             </tbody>
           </table>
         </div>
-      </section>
+      </Card>
 
       {rcm.status === "PUBLISHED" ? (
-        <div className="rounded-lg border border-gray-200 bg-white px-5 py-4">
-          <p className="text-sm text-gray-800">
-            <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-good)]">✓</span>
-            Matrix approved by <span className="font-semibold">{rcm.reviewed_by_name}</span>
-            {rcm.published_at && ` on ${new Date(rcm.published_at).toLocaleString()}`}.
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Published matrices are frozen. Rebuild to produce a new draft.
-          </p>
-        </div>
+        <Callout
+          tone="good"
+          title={
+            <>
+              Matrix approved by{" "}
+              <span className="font-semibold">{rcm.reviewed_by_name}</span>
+              {rcm.published_at && ` on ${new Date(rcm.published_at).toLocaleString()}`}.
+            </>
+          }
+        >
+          Published matrices are frozen. Rebuild to produce a new draft.
+        </Callout>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-5 py-4">
-          <p className="text-sm text-gray-600">
-            {can(...CAN_PUBLISH)
-              ? "Approving records this matrix against your name."
-              : "Approving the matrix requires a reviewer or owner."}
-          </p>
-          <button
-            type="button"
-            disabled={busy || !can(...CAN_PUBLISH) || rcm.rows.length === 0}
-            onClick={() => void run(() => api.publishRcm(rcm.id))}
-            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-          >
-            Approve &amp; publish matrix
-          </button>
-        </div>
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-lg text-sm text-muted-foreground">
+              {can(...CAN_PUBLISH)
+                ? "Approving records this matrix against your name."
+                : "Approving the matrix requires a reviewer or owner."}
+            </p>
+            <Button
+              disabled={busy || !can(...CAN_PUBLISH) || rcm.rows.length === 0}
+              onClick={() => void run(() => api.publishRcm(rcm.id))}
+            >
+              <Check />
+              Approve &amp; publish matrix
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

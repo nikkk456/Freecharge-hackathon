@@ -2,30 +2,227 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+/* ═════════════════════════════════════════════════════════════════════════════
+   AXIS DESIGN TOKENS
+
+   Every colour in this app comes from the Axis Bank palette. Three layers, kept
+   deliberately apart — folding them together is how a design system quietly dies.
+
+   1. BRAND      #97144D maroon · #ED1164 pink · #0C746C teal.
+                 Action and identity. Buttons, links, active nav, focus rings.
+   2. SURFACE    #FFFFFF · #F9F9F9 · #404040 and the ink/stroke greys.
+                 Neutral chrome: page, cards, text, borders, inputs.
+   3. STATUS     A four-step heat ramp: green -> amber -> orange -> red.
+                 RESERVED FOR HEALTH. Never a series colour, never chrome.
+
+   Two notes on the status ramp, because both are deliberate:
+
+   · The risk scale has four levels (LOW/MEDIUM/HIGH/CRITICAL) but the Axis palette
+     supplies three health hues (#278829 green, #D84008 orange, #EB0000 red). The
+     first instinct was to let CRITICAL escalate into the brand maroon #97144D, and
+     that was wrong: in dark mode the maroon lifts to a hot pink indistinguishable
+     from the primary button, so a GAP segment and a "Rebuild" button read as the
+     same thing. Health must never be confusable with action. So one amber is
+     derived to complete the ramp, and the STATUS LAYER NOW SHARES NO HUE WITH THE
+     BRAND AT ALL — which is the property actually worth having.
+
+   · Colour is never the only signal. Every status ships a distinct glyph and its
+     own word, so the meaning survives colour-vision deficiency, greyscale print and
+     forced-colors mode. See components/StatusGlyph.tsx.
+
+   Tokens are stored as bare HSL triplets so Tailwind opacity modifiers work
+   (`bg-primary/90`). Each status also gets a resolved `--status-*` colour for the
+   inline `style` attributes that cannot go through Tailwind.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* ── Layer 1 · Brand ─────────────────────────────────────────────────────
+       #97144D is THE Axis colour and the only one used for action. The bright
+       #ED1164 and the #F14687 / #F9B0CC strokes were tried as tints and pulled the
+       whole UI toward hot pink, which reads as consumer-app rather than bank. Every
+       lighter step is therefore the SAME hue with the saturation dropped, not the
+       lightness raised — that keeps a tint reading as "quiet maroon" instead of
+       "pink". #ED1164 survives only as the pressed/hover accent. */
+    --brand: 334 77% 34%; /* #97144D */
+    --brand-bright: 334 77% 27%; /* a darker press state, not a lighter pink */
+    --brand-teal: 175 81% 25%; /* #0C746C */
+    --brand-teal-deep: 188 64% 24%; /* #165964 */
+    --brand-line: 334 32% 80%; /* desaturated maroon rule */
+    --brand-soft: 334 30% 90%;
+    --brand-teal-soft: 176 34% 63%; /* #81C1BD */
+
+    /* Tinted brand surfaces: same hue, low chroma, so they read as warm neutrals. */
+    --brand-surface: 334 30% 96.5%;
+    --brand-surface-strong: 334 32% 91%;
+    --teal-surface: 176 28% 95.5%;
+
+    /* ── Layer 2 · Surface + ink ─────────────────────────────────────────── */
+    --background: 0 0% 98%; /* #F9F9F9 */
+    --foreground: 0 0% 16%; /* #282828 */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 0 0% 16%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 16%;
+
+    --primary: 334 77% 34%; /* #97144D */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 34%; /* #575757 */
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 43%; /* #6E6E6E */
+
+    --accent: 334 30% 96.5%;
+    --accent-foreground: 334 77% 34%;
+
+    --destructive: 0 100% 46%; /* #EB0000 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 89%; /* #E2E2E2 */
+    --input: 0 0% 89%;
+    --ring: 334 77% 34%; /* focus is brand maroon */
+
+    --radius: 0.625rem;
+
+    /* ── Layer 3 · Status · health only ──────────────────────────────────── */
+    --status-good-hsl: 121 55% 34%; /* #278829 */
+    --status-warning-hsl: 40 82% 45%; /* #D1971A — see note above */
+    --status-serious-hsl: 16 93% 44%; /* #D84008 */
+    --status-critical-hsl: 0 100% 40%; /* #CC0000, a step of #EB0000 */
+
+    --status-good: hsl(var(--status-good-hsl));
+    --status-warning: hsl(var(--status-warning-hsl));
+    --status-serious: hsl(var(--status-serious-hsl));
+    --status-critical: hsl(var(--status-critical-hsl));
+
+    --status-good-surface: 121 45% 95%;
+    --status-warning-surface: 43 85% 94%;
+    --status-serious-surface: 20 90% 95%;
+    --status-critical-surface: 0 80% 96%;
+
+    /* ── Sequential ramp · one hue, light → dark ─────────────────────────────
+       Built on the brand teal so meters read as measurement, not as health. */
+    --seq-fill: hsl(175 81% 30%);
+    --seq-track: hsl(176 34% 88%);
+    /* Cited-span highlight. A step of the brand pink ramp, not a status colour:
+       this marks "you are looking here", which is selection, not health. */
+    --highlight: hsl(334 42% 87%);
+    --highlight-edge: hsl(334 55% 55%);
+
+    --chart-surface: 0 0% 100%;
+  }
+
+  .dark {
+    /* On a dark ground the maroon only needs a few points of lightness to read as
+       an action — pushing it to #ED1164 turned every button hot pink. It stays a
+       dark red here, exactly as it is in light mode. */
+    --brand: 334 74% 42%;
+    --brand-bright: 334 74% 50%;
+    --brand-teal: 176 45% 52%;
+    --brand-teal-deep: 188 50% 40%;
+    --brand-line: 334 28% 34%;
+    --brand-soft: 334 25% 28%;
+    --brand-teal-soft: 176 30% 45%;
+
+    --brand-surface: 334 26% 16%;
+    --brand-surface-strong: 334 30% 22%;
+    --teal-surface: 176 30% 14%;
+
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%; /* #F9F9F9 */
+
+    --card: 0 0% 16%; /* #282828 */
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 16%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 334 74% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 22%;
+    --secondary-foreground: 0 0% 71%; /* #B4B4B4 */
+
+    --muted: 0 0% 22%;
+    --muted-foreground: 0 0% 71%;
+
+    --accent: 334 26% 20%;
+    --accent-foreground: 334 60% 72%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 25%; /* #404040 */
+    --input: 0 0% 28%;
+    --ring: 334 62% 58%;
+
+    /* Status is re-tuned, not flipped: the same four meanings, lifted so each is
+       legible on a dark surface. Mid-green reads as near-black otherwise. */
+    --status-good-hsl: 121 45% 52%;
+    --status-warning-hsl: 42 88% 55%;
+    --status-serious-hsl: 20 88% 58%;
+    --status-critical-hsl: 0 80% 62%;
+
+    --status-good: hsl(var(--status-good-hsl));
+    --status-warning: hsl(var(--status-warning-hsl));
+    --status-serious: hsl(var(--status-serious-hsl));
+    --status-critical: hsl(var(--status-critical-hsl));
+
+    --status-good-surface: 121 30% 14%;
+    --status-warning-surface: 42 40% 14%;
+    --status-serious-surface: 20 45% 15%;
+    --status-critical-surface: 0 45% 16%;
+
+    --seq-fill: hsl(176 45% 50%);
+    --seq-track: hsl(176 25% 24%);
+    --highlight: hsl(334 38% 30%);
+    --highlight-edge: hsl(334 55% 58%);
+
+    --chart-surface: 0 0% 16%;
+  }
 }
 
-:root {
-  /* Status palette — reserved for state (RAG health), never reused as a series
-     colour. Amber sits below 3:1 on a light surface by design, so every status
-     chip pairs the colour with an icon and a word: colour never carries meaning
-     on its own. */
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
-  --status-serious: #ec835a;
-  --status-critical: #d03b3b;
+@layer base {
+  * {
+    @apply border-border;
+  }
 
-  /* Sequential ramp — one hue, light→dark. Used for confidence meters: the fill and
-     its track are steps of the same blue, so the bar reads as one scale. */
-  --seq-fill: #2a78d6;
-  --seq-track: #cde2fb;
-  /* Cited-span highlight. A step of the same blue ramp, not a status colour: this
-     marks "you are looking here", which is selection, not health. */
-  --highlight: #b7d3f6;
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
 
-  /* Chart chrome */
-  --chart-surface: #ffffff;
-  --ink-muted: #898781;
+  /* One visible focus treatment everywhere, in brand maroon. The pre-Axis code
+     used `outline-none focus:border-…`, which removed the ring and replaced it
+     with a colour change only — invisible to anyone navigating by keyboard. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* The document pane scrolls independently and is read for long stretches, so it
+     gets a slim brand-tinted scrollbar rather than the OS default slab. */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scroll-slim::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  .scroll-slim:hover::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--brand) / 0.45);
+  }
 }

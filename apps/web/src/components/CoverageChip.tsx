@@ -1,16 +1,21 @@
-import type { CoverageName } from "../lib/api";
+import { StatusGlyph, toneColor, type Tone } from "@/components/StatusGlyph";
+import type { CoverageName } from "@/lib/api";
 
 // Coverage is a three-level state, so it uses the reserved status palette — and, as
 // everywhere, colour is never the only signal: each level carries a glyph and a word.
 // GAP is deliberately the loudest: it is the finding that creates work.
-const LEVELS: Record<CoverageName, { token: string; glyph: string; label: string }> = {
-  COVERED: { token: "--status-good", glyph: "✓", label: "Covered" },
-  PARTIAL: { token: "--status-warning", glyph: "!", label: "Partial" },
-  GAP: { token: "--status-critical", glyph: "✕", label: "Gap" },
+const LEVELS: Record<CoverageName, { tone: Tone; label: string }> = {
+  COVERED: { tone: "good", label: "Covered" },
+  PARTIAL: { tone: "warning", label: "Partial" },
+  GAP: { tone: "critical", label: "Gap" },
 };
 
+export function coverageTone(coverage: CoverageName): Tone {
+  return LEVELS[coverage].tone;
+}
+
 export function coverageColor(coverage: CoverageName): string {
-  return `var(${LEVELS[coverage].token})`;
+  return toneColor(LEVELS[coverage].tone);
 }
 
 export function coverageLabel(coverage: CoverageName): string {
@@ -18,16 +23,10 @@ export function coverageLabel(coverage: CoverageName): string {
 }
 
 export default function CoverageChip({ coverage }: { coverage: CoverageName }) {
-  const { glyph, label } = LEVELS[coverage];
+  const { tone, label } = LEVELS[coverage];
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pl-1.5 pr-2.5 text-xs font-medium text-gray-700">
-      <span
-        aria-hidden
-        className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold leading-none text-white"
-        style={{ backgroundColor: coverageColor(coverage) }}
-      >
-        {glyph}
-      </span>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card py-0.5 pl-1.5 pr-2.5 text-xs font-medium text-foreground">
+      <StatusGlyph tone={tone} />
       {label}
     </span>
   );
@@ -63,6 +62,7 @@ export function CoverageBar({
         {shown.map((part, index) => (
           <div
             key={part.coverage}
+            className="transition-[width] duration-500 ease-out"
             style={{
               width: `${(part.count / total) * 100}%`,
               backgroundColor: coverageColor(part.coverage),
@@ -77,15 +77,9 @@ export function CoverageBar({
       <div className="mt-2.5 flex flex-wrap gap-x-6 gap-y-2">
         {parts.map((part) => (
           <div key={part.coverage} className="flex items-center gap-2 text-sm">
-            <span
-              aria-hidden
-              className="flex h-4 w-4 items-center justify-center rounded-[3px] text-[10px] font-bold leading-none text-white"
-              style={{ backgroundColor: coverageColor(part.coverage) }}
-            >
-              {LEVELS[part.coverage].glyph}
-            </span>
-            <span className="text-gray-600">{coverageLabel(part.coverage)}</span>
-            <span className="font-semibold tabular-nums text-gray-900">{part.count}</span>
+            <StatusGlyph tone={LEVELS[part.coverage].tone} square />
+            <span className="text-muted-foreground">{coverageLabel(part.coverage)}</span>
+            <span className="font-semibold tabular-nums text-foreground">{part.count}</span>
           </div>
         ))}
       </div>

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import type { RiskRating } from "../lib/api";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import type { RiskRating } from "@/lib/api";
 
 const RATINGS: RiskRating[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
@@ -28,12 +31,14 @@ export function EditableText({
   }, [value, dirty]);
 
   if (disabled) {
-    return <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{value}</p>;
+    return (
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{value}</p>
+    );
   }
 
   return (
     <div>
-      <textarea
+      <Textarea
         aria-label={label}
         rows={rows}
         value={draft}
@@ -41,30 +46,28 @@ export function EditableText({
           setDraft(e.target.value);
           setDirty(true);
         }}
-        className="w-full resize-y rounded border border-gray-300 px-3 py-2 text-sm leading-relaxed outline-none focus:border-gray-900"
       />
       {dirty && (
-        <div className="mt-1.5 flex items-center gap-2">
-          <button
-            type="button"
+        <div className="mt-2 flex items-center gap-2">
+          <Button
+            size="xs"
             onClick={async () => {
               await onSave(draft.trim());
               setDirty(false);
             }}
-            className="rounded bg-gray-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-gray-700"
           >
             Save
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
             onClick={() => {
               setDraft(value);
               setDirty(false);
             }}
-            className="text-xs text-gray-500 underline hover:text-gray-900"
           >
             Discard
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -82,20 +85,21 @@ export function RiskSelector({
 }) {
   if (disabled) return null;
   return (
-    <label className="flex items-center gap-2 text-xs text-gray-600">
+    <label className="flex items-center gap-2 text-xs text-muted-foreground">
       Override
-      <select
+      <Select
+        size="sm"
         aria-label="Override the risk rating"
         value={value}
         onChange={(e) => onChange(e.target.value as RiskRating)}
-        className="rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
+        className="w-[7.5rem]"
       >
         {RATINGS.map((rating) => (
           <option key={rating} value={rating}>
             {rating}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

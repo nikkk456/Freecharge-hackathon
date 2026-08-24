@@ -1,8 +1,15 @@
+import { Check, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import CitationChip from "./CitationChip";
-import ConfidenceMeter from "./ConfidenceMeter";
-import RiskBadge from "./RiskBadge";
-import { EditableText, RiskSelector } from "./ReviewControls";
+import Callout from "@/components/Callout";
+import CitationChip from "@/components/CitationChip";
+import ConfidenceMeter from "@/components/ConfidenceMeter";
+import { EditableText, RiskSelector } from "@/components/ReviewControls";
+import RiskBadge from "@/components/RiskBadge";
+import VerificationBadge from "@/components/VerificationBadge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   api,
   CAN_PUBLISH,
@@ -11,17 +18,28 @@ import {
   type FunctionOut,
   type PriorityName,
   type RiskRating,
-} from "../lib/api";
-import { useAuth } from "../lib/auth";
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 const PRIORITY_STYLE: Record<PriorityName, string> = {
-  HIGH: "font-semibold text-gray-900",
-  MEDIUM: "text-gray-700",
-  LOW: "text-gray-500",
+  HIGH: "font-semibold text-foreground",
+  MEDIUM: "text-foreground/90",
+  LOW: "text-muted-foreground",
 };
 
 function sameCitation(a: Citation | null, b: Citation | null): boolean {
   return !!a && !!b && a.target_kind === b.target_kind && a.target_ref === b.target_ref;
+}
+
+/** A small "added by reviewer" marker. Human authorship survives an AI re-run, so it
+ *  is worth showing which rows a person put there. */
+function HumanTag() {
+  return (
+    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+      added by reviewer
+    </span>
+  );
 }
 
 export default function AnalysisPanel({
@@ -44,8 +62,6 @@ export default function AnalysisPanel({
   const [newItem, setNewItem] = useState({ description: "", owner: "", priority: "MEDIUM" });
 
   const editable = analysis.editable;
-  const allVerified =
-    analysis.citations_total > 0 && analysis.citations_verified === analysis.citations_total;
 
   // Every mutation funnels through here so one failure path serves them all, and the
   // parent always refetches — the server is the source of truth, not local state.
@@ -68,23 +84,18 @@ export default function AnalysisPanel({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded border border-gray-200 bg-white p-3 text-sm text-[color:var(--status-critical)]">
-          <span aria-hidden className="mr-1.5 font-bold">✕</span>
-          {error}
-        </div>
-      )}
+      {error && <Callout tone="critical">{error}</Callout>}
 
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-gray-900">AI analysis</h2>
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2.5">
+            <CardTitle>AI analysis</CardTitle>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
               v{analysis.version} · {analysis.status}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-xs text-gray-500">confidence</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted-foreground">confidence</span>
             <ConfidenceMeter value={analysis.confidence} width={56} />
             {analysis.risk_rating && <RiskBadge rating={analysis.risk_rating} />}
             {analysis.risk_rating && (
@@ -97,45 +108,22 @@ export default function AnalysisPanel({
               />
             )}
           </div>
-        </header>
+        </CardHeader>
 
-        <div className="space-y-4 px-5 py-4">
-          {analysis.citations_total > 0 && (
-            <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
-              <p className="text-xs text-gray-700">
-                <span
-                  aria-hidden
-                  className="mr-1.5 font-bold"
-                  style={{
-                    color: allVerified ? "var(--status-good)" : "var(--status-warning)",
-                  }}
-                >
-                  {allVerified ? "✓" : "!"}
-                </span>
-                <span className="font-semibold tabular-nums">
-                  {analysis.citations_verified} of {analysis.citations_total}
-                </span>{" "}
-                claims traced to a line that is verifiably in this circular.
-                {!allVerified && " The rest are marked unverified below."}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Verification is done by matching the quote against the stored text — not by
-                asking the model whether it was right.
-              </p>
-            </div>
-          )}
+        <CardContent className="space-y-4">
+          <VerificationBadge
+            verified={analysis.citations_verified}
+            total={analysis.citations_total}
+          />
 
           {analysis.needs_review && (
-            <p className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
-              <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-warning)]">
-                !
-              </span>
+            <Callout tone="warning">
               Confidence is below the auto-accept threshold — this draft needs a closer read.
-            </p>
+            </Callout>
           )}
 
           <div>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <h3 className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               Summary
             </h3>
             <EditableText
@@ -147,8 +135,8 @@ export default function AnalysisPanel({
           </div>
 
           <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <div className="mb-1.5 flex items-center gap-2">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Why this rating
               </h3>
               <CitationChip
@@ -162,37 +150,38 @@ export default function AnalysisPanel({
               rows={3}
               value={analysis.risk_reasoning ?? ""}
               disabled={!editable}
-              onSave={(next) =>
-                run(() => api.editAnalysis(analysis.id, { risk_reasoning: next }))
-              }
+              onSave={(next) => run(() => api.editAnalysis(analysis.id, { risk_reasoning: next }))}
             />
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground/80">
             Drafted by {analysis.model_name}
             {analysis.edited_by_name && ` · edited by ${analysis.edited_by_name}`}
             {analysis.reviewed_by_name
               ? ` · approved by ${analysis.reviewed_by_name}`
               : " · not published until a human approves it"}
           </p>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">
+      <Card>
+        <CardHeader>
+          <CardTitle>
             Impacted departments{" "}
-            <span className="text-gray-400">({analysis.impacted_functions.length})</span>
-          </h2>
+            <span className="font-normal tabular-nums text-muted-foreground">
+              ({analysis.impacted_functions.length})
+            </span>
+          </CardTitle>
           {editable && unlisted.length > 0 && (
-            <select
+            <Select
+              size="sm"
               aria-label="Add an impacted department"
               value=""
               disabled={busy}
               onChange={(e) =>
                 e.target.value && void run(() => api.addFunction(analysis.id, e.target.value))
               }
-              className="rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
+              className="w-56"
             >
               <option value="">Add a department…</option>
               {unlisted.map((f) => (
@@ -200,21 +189,17 @@ export default function AnalysisPanel({
                   {f.code} · {f.name}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
-        </header>
-        <ul className="divide-y divide-gray-100">
+        </CardHeader>
+        <ul className="divide-y divide-border">
           {analysis.impacted_functions.map((f) => (
-            <li key={f.code} className="px-5 py-3">
+            <li key={f.code} className="px-5 py-3 transition-colors hover:bg-muted/40">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-gray-900">
-                  <span className="mr-2 tabular-nums text-gray-400">{f.code}</span>
+                <span className="text-sm font-medium text-foreground">
+                  <span className="mr-2 tabular-nums text-muted-foreground">{f.code}</span>
                   {f.name}
-                  {f.source === "HUMAN" && (
-                    <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">
-                      added by reviewer
-                    </span>
-                  )}
+                  {f.source === "HUMAN" && <HumanTag />}
                 </span>
                 <span className="flex items-center gap-3">
                   <ConfidenceMeter value={f.confidence} />
@@ -224,63 +209,69 @@ export default function AnalysisPanel({
                     onSelect={onSelectCitation}
                   />
                   {editable && (
-                    <button
-                      type="button"
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
                       disabled={busy}
+                      aria-label={`Remove ${f.name}`}
+                      title="Remove"
                       onClick={() => void run(() => api.removeFunction(analysis.id, f.code))}
-                      className="text-xs text-gray-400 hover:text-[color:var(--status-critical)]"
+                      className="hover:text-status-critical"
                     >
-                      Remove
-                    </button>
+                      <X />
+                    </Button>
                   )}
                 </span>
               </div>
               {f.reasoning && (
-                <p className="mt-1 max-w-3xl text-sm text-gray-600">{f.reasoning}</p>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{f.reasoning}</p>
               )}
             </li>
           ))}
           {analysis.impacted_functions.length === 0 && (
-            <li className="px-5 py-4 text-sm text-gray-500">
+            <li className="px-5 py-4 text-sm text-muted-foreground">
               No department was identified as impacted.
             </li>
           )}
         </ul>
-      </section>
+      </Card>
 
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Action items <span className="text-gray-400">({analysis.action_items.length})</span>
-          </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Action items{" "}
+            <span className="font-normal tabular-nums text-muted-foreground">
+              ({analysis.action_items.length})
+            </span>
+          </CardTitle>
           {editable && (
-            <button
-              type="button"
-              onClick={() => setAdding((v) => !v)}
-              className="rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:border-gray-900"
-            >
+            <Button size="xs" variant="outline" onClick={() => setAdding((v) => !v)}>
+              {adding ? <X /> : <Plus />}
               {adding ? "Cancel" : "Add an item"}
-            </button>
+            </Button>
           )}
-        </header>
+        </CardHeader>
 
         {adding && (
-          <div className="flex flex-wrap items-end gap-2 border-b border-gray-100 bg-gray-50 px-5 py-3">
-            <label className="flex-1">
-              <span className="text-xs text-gray-600">What must be done</span>
-              <input
+          <div className="flex flex-wrap items-end gap-2 border-b border-border bg-muted/40 px-5 py-3">
+            <label className="min-w-[16rem] flex-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                What must be done
+              </span>
+              <Input
                 value={newItem.description}
                 onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                 placeholder="Brief the board on the January 2027 deadline"
-                className="mt-1 w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm outline-none focus:border-gray-900"
+                className="mt-1 h-8"
               />
             </label>
             <label>
-              <span className="text-xs text-gray-600">Owner</span>
-              <select
+              <span className="text-xs font-medium text-muted-foreground">Owner</span>
+              <Select
+                size="sm"
                 value={newItem.owner}
                 onChange={(e) => setNewItem({ ...newItem, owner: e.target.value })}
-                className="mt-1 block rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-gray-900"
+                className="mt-1 w-32"
               >
                 <option value="">Unassigned</option>
                 {functions.map((f) => (
@@ -288,10 +279,10 @@ export default function AnalysisPanel({
                     {f.code}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <button
-              type="button"
+            <Button
+              size="sm"
               disabled={busy || newItem.description.trim().length < 3}
               onClick={() =>
                 void run(async () => {
@@ -305,35 +296,38 @@ export default function AnalysisPanel({
                   setAdding(false);
                 })
               }
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
+              <Check />
               Add
-            </button>
+            </Button>
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-gray-500">
-              <tr className="border-b border-gray-100">
-                <th className="px-5 py-2 font-medium">What must be done</th>
-                <th className="px-5 py-2 font-medium">Source</th>
-                <th className="px-5 py-2 font-medium">Owner</th>
-                <th className="px-5 py-2 font-medium">Priority</th>
-                <th className="px-5 py-2 font-medium">Due</th>
-                {editable && <th className="px-5 py-2 font-medium sr-only">Actions</th>}
+        <div className="relative overflow-x-auto">
+          <table className="w-full min-w-[58rem] text-left text-sm">
+            <thead className="text-2xs uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="min-w-[26rem] px-5 py-2 font-semibold">What must be done</th>
+                <th className="px-5 py-2 font-semibold">Source</th>
+                <th className="px-5 py-2 font-semibold">Owner</th>
+                <th className="px-5 py-2 font-semibold">Priority</th>
+                <th className="px-5 py-2 font-semibold">Due</th>
+                {editable && (
+                  <th className="px-5 py-2 font-semibold">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {analysis.action_items.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 align-top last:border-0">
-                  <td className={`px-5 py-3 ${PRIORITY_STYLE[item.priority]}`}>
+                <tr
+                  key={item.id}
+                  className="border-b border-border align-top transition-colors last:border-0 hover:bg-muted/40"
+                >
+                  <td className={cn("w-[32rem] min-w-[26rem] px-5 py-3", PRIORITY_STYLE[item.priority])}>
                     {item.description}
-                    {item.source === "HUMAN" && (
-                      <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">
-                        added by reviewer
-                      </span>
-                    )}
+                    {item.source === "HUMAN" && <HumanTag />}
                   </td>
                   <td className="px-5 py-3">
                     <CitationChip
@@ -342,9 +336,10 @@ export default function AnalysisPanel({
                       onSelect={onSelectCitation}
                     />
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3 text-gray-700">
+                  <td className="whitespace-nowrap px-5 py-3 text-foreground/90">
                     {editable ? (
-                      <select
+                      <Select
+                        size="sm"
                         aria-label={`Owner for: ${item.description.slice(0, 40)}`}
                         value={item.owner_function_code ?? ""}
                         disabled={busy}
@@ -355,7 +350,7 @@ export default function AnalysisPanel({
                             }),
                           )
                         }
-                        className="rounded border border-gray-300 px-1.5 py-1 text-xs outline-none focus:border-gray-900"
+                        className="w-24"
                       >
                         <option value="">—</option>
                         {functions.map((f) => (
@@ -363,21 +358,22 @@ export default function AnalysisPanel({
                             {f.code}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : item.owner_function_code ? (
                       <>
-                        <span className="tabular-nums text-gray-400">
+                        <span className="tabular-nums text-muted-foreground">
                           {item.owner_function_code}
                         </span>{" "}
                         {item.owner_function_name}
                       </>
                     ) : (
-                      <span className="text-gray-400">Unassigned</span>
+                      <span className="text-muted-foreground">Unassigned</span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-gray-700">
+                  <td className="px-5 py-3 text-foreground/90">
                     {editable ? (
-                      <select
+                      <Select
+                        size="sm"
                         aria-label={`Priority for: ${item.description.slice(0, 40)}`}
                         value={item.priority}
                         disabled={busy}
@@ -388,38 +384,41 @@ export default function AnalysisPanel({
                             }),
                           )
                         }
-                        className="rounded border border-gray-300 px-1.5 py-1 text-xs outline-none focus:border-gray-900"
+                        className="w-28"
                       >
                         {(["LOW", "MEDIUM", "HIGH"] as PriorityName[]).map((p) => (
                           <option key={p} value={p}>
                             {p}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
                       item.priority
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3 tabular-nums text-gray-700">
+                  <td className="whitespace-nowrap px-5 py-3 tabular-nums text-foreground/90">
                     {item.due_date ?? "—"}
                   </td>
                   {editable && (
                     <td className="whitespace-nowrap px-5 py-3 text-right">
-                      <button
-                        type="button"
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
                         disabled={busy}
+                        aria-label="Remove this action item"
+                        title="Remove"
                         onClick={() => void run(() => api.deleteActionItem(item.id))}
-                        className="text-xs text-gray-400 hover:text-[color:var(--status-critical)]"
+                        className="hover:text-status-critical"
                       >
-                        Remove
-                      </button>
+                        <Trash2 />
+                      </Button>
                     </td>
                   )}
                 </tr>
               ))}
               {analysis.action_items.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-4 text-sm text-gray-500">
+                  <td colSpan={6} className="px-5 py-4 text-sm text-muted-foreground">
                     No action items were extracted.
                   </td>
                 </tr>
@@ -427,7 +426,7 @@ export default function AnalysisPanel({
             </tbody>
           </table>
         </div>
-      </section>
+      </Card>
 
       <ApproveBar analysis={analysis} busy={busy} canPublish={can(...CAN_PUBLISH)} onRun={run} />
     </div>
@@ -447,37 +446,38 @@ function ApproveBar({
 }) {
   if (analysis.status === "PUBLISHED") {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white px-5 py-4">
-        <p className="text-sm text-gray-800">
-          <span aria-hidden className="mr-1.5 font-bold text-[color:var(--status-good)]">✓</span>
-          Approved by <span className="font-semibold">{analysis.reviewed_by_name}</span>
-          {analysis.published_at &&
-            ` on ${new Date(analysis.published_at).toLocaleString()}`}
-          .
-        </p>
-        <p className="mt-1 text-xs text-gray-500">
-          Published analyses are frozen. Re-run the AI to produce a new draft.
-        </p>
-      </div>
+      <Callout
+        tone="good"
+        title={
+          <>
+            Approved by{" "}
+            <span className="font-semibold">{analysis.reviewed_by_name}</span>
+            {analysis.published_at && ` on ${new Date(analysis.published_at).toLocaleString()}`}.
+          </>
+        }
+      >
+        Published analyses are frozen. Re-run the AI to produce a new draft.
+      </Callout>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-5 py-4">
-      <p className="text-sm text-gray-600">
-        {canPublish
-          ? "Everything above is a draft. Approving records this version against your name."
-          : "You can edit this draft, but approving it requires a reviewer or owner."}
-      </p>
-      <button
-        type="button"
-        disabled={busy || !canPublish}
-        title={canPublish ? undefined : "Sign in as a reviewer or owner to approve"}
-        onClick={() => void onRun(() => api.publish(analysis.id))}
-        className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-      >
-        Approve &amp; publish
-      </button>
-    </div>
+    <Card>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-lg text-sm text-muted-foreground">
+          {canPublish
+            ? "Everything above is a draft. Approving records this version against your name."
+            : "You can edit this draft, but approving it requires a reviewer or owner."}
+        </p>
+        <Button
+          disabled={busy || !canPublish}
+          title={canPublish ? undefined : "Sign in as a reviewer or owner to approve"}
+          onClick={() => void onRun(() => api.publish(analysis.id))}
+        >
+          <Check />
+          Approve &amp; publish
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

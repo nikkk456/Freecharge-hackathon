@@ -1,5 +1,10 @@
+import { Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../lib/auth";
+import Callout from "@/components/Callout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth";
 
 // The demo accounts, shown on the form so nobody has to dig through the README.
 // Roles differ on purpose: only reviewer and owner can approve a draft.
@@ -32,71 +37,70 @@ export default function Login() {
 
   return (
     <div className="mx-auto max-w-sm py-10">
-      <h1 className="text-xl font-semibold text-gray-900">Sign in</h1>
-      <p className="mt-1 text-sm text-gray-600">
-        Approving a circular is a named decision — it is recorded against you.
-      </p>
+      <div className="flex flex-col items-center text-center">
+        <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+          <ShieldCheck className="size-5 text-foreground" strokeWidth={2.25} />
+        </span>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Approving a circular is a named decision — it is recorded against you.
+        </p>
+      </div>
 
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={submit} className="mt-7 space-y-3.5">
         <label className="block">
-          <span className="text-xs text-gray-600">Email</span>
-          <input
+          <span className="text-xs font-medium text-muted-foreground">Email</span>
+          <Input
             type="email"
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
+            className="mt-1.5"
           />
         </label>
         <label className="block">
-          <span className="text-xs text-gray-600">Password</span>
-          <input
+          <span className="text-xs font-medium text-muted-foreground">Password</span>
+          <Input
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
+            className="mt-1.5"
           />
         </label>
 
-        {error && (
-          <p className="text-sm text-[color:var(--status-critical)]">
-            <span aria-hidden className="mr-1.5 font-bold">✕</span>
-            {error}
-          </p>
-        )}
+        {error && <Callout tone="critical">{error}</Callout>}
 
-        <button
-          type="submit"
-          disabled={busy || !email || !password}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-        >
+        <Button type="submit" size="lg" disabled={busy || !email || !password} className="w-full">
+          {busy && <Loader2 className="animate-spin" />}
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
 
-      <div className="mt-8 rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Demo accounts
-        </h2>
-        <ul className="mt-2 space-y-1.5">
-          {DEMO.map((account) => (
-            <li key={account.email} className="flex items-center justify-between gap-3 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
-                }}
-                className="text-gray-700 underline decoration-gray-300 underline-offset-2 hover:decoration-gray-900"
-              >
-                {account.email}
-              </button>
-              <span className="text-gray-400">{account.note}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <Card className="mt-8">
+        <CardContent className="py-4">
+          <h2 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Demo accounts
+          </h2>
+          <ul className="mt-2.5 space-y-1.5">
+            {DEMO.map((account) => (
+              <li key={account.email} className="flex items-center justify-between gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(account.email);
+                    setPassword(account.password);
+                  }}
+                  className="rounded-sm font-medium text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-foreground"
+                >
+                  {account.email}
+                </button>
+                <span className="text-muted-foreground">{account.note}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

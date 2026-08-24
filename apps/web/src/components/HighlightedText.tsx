@@ -40,7 +40,7 @@ export default function HighlightedText({
       {text.slice(0, from)}
       <mark
         ref={markRef}
-        className="rounded-sm px-0.5 text-gray-900"
+        className="rounded-sm px-0.5 text-foreground ring-1 ring-[var(--seq-fill)]/40"
         style={{ backgroundColor: "var(--highlight)" }}
       >
         {text.slice(from, to)}

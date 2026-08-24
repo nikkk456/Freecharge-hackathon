@@ -1,4 +1,6 @@
-import type { Citation, CitationMatch } from "../lib/api";
+import { Check, X } from "lucide-react";
+import type { Citation, CitationMatch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // Why a claim could not be grounded, in the reviewer's language rather than ours.
 const UNVERIFIED_REASON: Record<CitationMatch, string> = {
@@ -32,11 +34,9 @@ export default function CitationChip({
     return (
       <span
         title={UNVERIFIED_REASON[citation.match]}
-        className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-gray-200 px-1.5 py-0.5 text-xs text-[color:var(--status-critical)]"
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-status-critical/30 bg-status-critical-surface px-1.5 py-0.5 text-xs font-medium text-status-critical"
       >
-        <span aria-hidden className="font-bold">
-          ✕
-        </span>
+        <X aria-hidden className="size-3" strokeWidth={3} />
         unverified
       </span>
     );
@@ -48,15 +48,19 @@ export default function CitationChip({
       type="button"
       onClick={() => onSelect(citation)}
       title={note ? `${note} Click to show it in the circular.` : "Show this line in the circular"}
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 text-xs transition-colors ${
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-xs font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
         active
-          ? "border-gray-900 bg-gray-900 text-white"
-          : "border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900"
-      }`}
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-status-good/30 bg-status-good-surface text-foreground hover:border-status-good/60",
+      )}
     >
-      <span aria-hidden className={active ? "" : "text-[color:var(--status-good)]"}>
-        ✓
-      </span>
+      <Check
+        aria-hidden
+        className={cn("size-3", !active && "text-status-good")}
+        strokeWidth={3}
+      />
       {citation.page ? `page ${citation.page}` : "source"}
       {note && <span aria-hidden>*</span>}
     </button>

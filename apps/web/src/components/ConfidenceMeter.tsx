@@ -8,7 +8,7 @@ export default function ConfidenceMeter({
   value: number | null;
   width?: number;
 }) {
-  if (value == null) return <span className="text-xs text-gray-400">—</span>;
+  if (value == null) return <span className="text-xs text-muted-foreground">—</span>;
   const pct = Math.round(Math.min(Math.max(value, 0), 1) * 100);
   return (
     <span className="inline-flex items-center gap-2">
@@ -19,11 +19,11 @@ export default function ConfidenceMeter({
         style={{ width, backgroundColor: "var(--seq-track)" }}
       >
         <span
-          className="block h-full rounded-full"
+          className="block h-full rounded-full transition-[width] duration-500 ease-out"
           style={{ width: `${pct}%`, backgroundColor: "var(--seq-fill)" }}
         />
       </span>
-      <span className="text-xs tabular-nums text-gray-500">{pct}%</span>
+      <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
     </span>
   );
 }

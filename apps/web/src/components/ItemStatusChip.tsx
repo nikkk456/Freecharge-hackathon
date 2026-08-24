@@ -1,13 +1,16 @@
-import type { ItemStatus } from "../lib/api";
+import { Check } from "lucide-react";
+import { StatusGlyph } from "@/components/StatusGlyph";
+import type { ItemStatus } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-// Workflow position, not health — so this uses neutral greys, like StatusBadge, and
+// Workflow position, not health — so this uses neutral tones, like StatusBadge, and
 // never the reserved RAG palette. Progress is not health.
 const STYLES: Record<ItemStatus, string> = {
-  OPEN: "bg-gray-100 text-gray-700",
-  IN_PROGRESS: "bg-gray-800 text-white",
-  BLOCKED: "bg-white text-gray-700 ring-1 ring-inset ring-gray-400",
-  SUBMITTED: "bg-gray-200 text-gray-800",
-  CLOSED: "bg-white text-gray-500 ring-1 ring-inset ring-gray-200",
+  OPEN: "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
+  IN_PROGRESS: "bg-foreground/85 text-background",
+  BLOCKED: "bg-card text-foreground ring-1 ring-inset ring-foreground/35",
+  SUBMITTED: "bg-secondary text-secondary-foreground ring-1 ring-inset ring-border",
+  CLOSED: "bg-card text-muted-foreground ring-1 ring-inset ring-border",
 };
 
 const LABELS: Record<ItemStatus, string> = {
@@ -25,12 +28,13 @@ export function itemStatusLabel(status: ItemStatus): string {
 export default function ItemStatusChip({ status }: { status: ItemStatus }) {
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
+        STYLES[status],
+      )}
     >
       {status === "CLOSED" && (
-        <span aria-hidden className="mr-1 text-[color:var(--status-good)]">
-          ✓
-        </span>
+        <Check aria-hidden className="size-3 text-status-good" strokeWidth={3} />
       )}
       {LABELS[status]}
     </span>
@@ -43,16 +47,10 @@ export function OverdueChip({ days }: { days: number | null }) {
   const late = days == null ? null : Math.abs(days);
   return (
     <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-gray-200 bg-white py-0.5 pl-1.5 pr-2.5 text-xs font-medium text-gray-700"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-status-critical/30 bg-status-critical-surface py-0.5 pl-1.5 pr-2.5 text-xs font-medium text-foreground"
       title="Past its due date"
     >
-      <span
-        aria-hidden
-        className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold leading-none text-white"
-        style={{ backgroundColor: "var(--status-critical)" }}
-      >
-        !
-      </span>
+      <StatusGlyph tone="critical" />
       {late == null ? "Overdue" : `${late}d overdue`}
     </span>
   );
