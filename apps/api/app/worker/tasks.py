@@ -14,6 +14,7 @@ from app.models.enums import CircularStatus
 from app.modules.analysis import service as analysis
 from app.modules.circulars import service as circulars
 from app.modules.rcm import service as rcm
+from app.modules.tracker import workflow as tracker
 
 log = get_logger("worker.tasks")
 
@@ -82,3 +83,16 @@ async def build_rcm(ctx: dict, circular_id: str) -> str:
             log.warning("rcm_skipped", circular_id=circular_id, reason=str(exc))
             return "skipped"
         return f"rows={len(result.rows)}" if result else "failed"
+
+
+async def sweep_overdue(ctx: dict) -> str:
+    """Daily: raise every action item that has passed its due date.
+
+    Takes no argument because it is a cron, not a per-entity job. Idempotent by
+    `last_reminder_at`, so an ARQ retry — or a second run in the same day — notifies
+    nobody twice. It never changes a status: a scheduled job raising an alarm is fine,
+    a scheduled job moving work is not.
+    """
+    async with SessionLocal() as db:
+        result = await tracker.sweep_overdue(db)
+        return f"overdue={result['newly_overdue']} reminded={result['reminded']}"

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Enum, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,10 +35,17 @@ class ActionItem(UUIDPkMixin, TimestampMixin, Base):
     priority: Mapped[Priority] = mapped_column(
         Enum(Priority, name="action_item_priority"), default=Priority.MEDIUM
     )
+    # Closure evidence. The state machine refuses CLOSED without one of these, because
+    # "we did it, trust us" is not a closure a regulator accepts.
     evidence_url: Mapped[str | None] = mapped_column(String(1024))
+    closure_note: Mapped[str | None] = mapped_column(Text)
     closed_by: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("users.id")
     )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the overdue sweep last raised this item. Makes the cron idempotent: a second
+    # run on the same day re-notifies nobody.
+    last_reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source: Mapped[AssertionSource] = mapped_column(
         Enum(AssertionSource, name="assertion_source_ai"), default=AssertionSource.AI
     )

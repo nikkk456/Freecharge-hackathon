@@ -31,14 +31,12 @@ Nobody thinks it's hallucinating.
 - [x] Human review: edit any field, override the rating, approve → PUBLISHED (frozen)
 - [x] Audit log on every step (hash-chained, tamper-evident, verifiable live)
 - [x] Draft RCM + control-library matching (whole 36-row library in-context, no embeddings)
-- [ ] Chunk with char offsets + embed + store vectors
-- [ ] LLM provider abstraction (LiteLLM) + structured analysis prompt
-- [ ] Citation grounding + verification
-- [ ] ARQ async analysis job
-- [ ] Review UI with citation highlighting
-- [ ] Draft RCM + mock control library + vector matching
-- [ ] Action item tracker
-- [ ] Audit log on every step
+- [x] Action item tracker (owner, due date, state machine, evidence-gated closure)
+- [x] Overdue detection via a daily ARQ cron (idempotent; raises alarms, never moves work)
+- [~] Chunk with char offsets + embed + store vectors — **deliberately not done.** Char
+      offsets live on `circulars.page_map` and drive citations without embeddings; the
+      36-row control library is matched in-context, which is more accurate at this size.
+      The pgvector columns remain so this scales when the library does.
 
 ## Phase 1 — Closure workflow
 Reminders, SLA/TAT escalation, overdue detection (scheduled ARQ cron), evidence-gated close.

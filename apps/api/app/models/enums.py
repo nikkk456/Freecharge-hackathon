@@ -45,12 +45,19 @@ class RiskRating(str, enum.Enum):
 
 
 class ActionItemStatus(str, enum.Enum):
+    """Where a piece of work has got to.
+
+    There is deliberately no OVERDUE member. Overdue is a property of the *due date*,
+    not a stage of the work: an item can be IN_PROGRESS and late at the same time, and
+    storing OVERDUE as the status would destroy the only record of what was actually
+    happening to it. It is derived — see `tracker.service.is_overdue`.
+    """
+
     OPEN = "OPEN"
     IN_PROGRESS = "IN_PROGRESS"
     BLOCKED = "BLOCKED"
     SUBMITTED = "SUBMITTED"
     CLOSED = "CLOSED"
-    OVERDUE = "OVERDUE"
 
 
 class Priority(str, enum.Enum):

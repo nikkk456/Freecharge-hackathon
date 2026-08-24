@@ -6,7 +6,7 @@
 Upload a regulatory circular → the AI produces a **cited** analysis → a human reviews and
 approves it → it becomes a Risk & Control Matrix and a tracked list of action items.
 
-**Stages 0–5 complete.**
+**All six stages complete.**
 
 | | What works |
 |---|---|
@@ -15,9 +15,8 @@ approves it → it becomes a Risk & Control Matrix and a tracked list of action 
 | **Verified citations** | Every claim carries a quote **our code located** in the stored text. Click it, the line highlights |
 | **Human review** | Sign in, edit anything, override the rating, approve. Published work is frozen |
 | **RCM** | Each risk matched against the 36-control library; the ones with no control are flagged as **gaps** |
+| **Tracker** | Every obligation with an owner, a deadline and a tracked status. Closure needs evidence and a second pair of eyes |
 | **Audit** | Every AI suggestion and human decision, hash-chained and verifiable live |
-
-Next: the action-item tracker (owners, due dates, reminders).
 
 Sign in with `reviewer@cac.dev` / `reviewer123` — the login page lists all demo accounts.
 
@@ -63,21 +62,21 @@ Hackathon/
     │   │   ├── core/         # config, security, logging, storage, deps  ← infra plumbing
     │   │   ├── db/           # async SQLAlchemy engine + base
     │   │   ├── models/       # ALL 13 ORM tables (the data model)        ← kept as design
-    │   │   ├── modules/      # EMPTY — your feature modules go here
+    │   │   ├── modules/      # library · circulars · analysis · auth · audit · rcm · tracker
     │   │   ├── ai/           # LLM client (LiteLLM) · prompts · citation grounding
-    │   │   ├── worker/       # ARQ queue, tasks (OCR, analysis, RCM), settings
+    │   │   ├── worker/       # ARQ queue, tasks (OCR, analysis, RCM), overdue cron
     │   │   ├── api/router.py # /api/v1 aggregator — plug module routers in here
     │   │   └── main.py       # FastAPI entrypoint
     │   ├── alembic/          # migrations (unused — see "Database changes" below)
     │   ├── scripts/
     │   │   ├── data/*.json   # foundation seed: functions, controls, kcis
     │   │   └── seed.py       # schema + demo users + foundation data
-    │   └── tests/            # 188 tests
+    │   └── tests/            # 238 tests
     └── web/                  # React + Vite SPA
         └── src/
             ├── lib/          # api.ts (typed client) · auth.tsx · usePolling.ts
             ├── components/   # panels, chips, meters
-            ├── pages/        # Login · Home · Circulars · CircularDetail · Audit
+            ├── pages/        # Login · Home · Circulars · CircularDetail · Tracker · Audit
             └── App.tsx       # router shell + auth gate
 ```
 
@@ -121,7 +120,7 @@ npm install
 
 ```powershell
 cd apps\api
-python -m pytest                     # 196 passed — includes a check that every
+python -m pytest                     # 238 passed — includes a check that every
                                      # imported package is declared in pyproject.toml
 python -c "from app.core.config import settings; print('key set:', bool(settings.gemini_api_key))"
 ```
@@ -147,6 +146,7 @@ python -c "from app.core.config import settings; print('key set:', bool(settings
 | `503 high demand` from Gemini | Free-tier spike. The client retries and falls back automatically; nothing to do |
 | `relation "..." does not exist` after a `git pull` | A model changed. Run `python -m scripts.seed --reset` |
 | PowerShell won't run `dev.ps1` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` (once) |
+| One failed request right after `seed --reset` | The running API still held connections to the schema you dropped. Retry — the pool reconnects |
 
 </details>
 
@@ -202,7 +202,11 @@ cd apps\web; npm run dev
    `analyst@cac.dev` first — approving is refused with a 403.
 5. **Risk & Control Matrix tab → Build the matrix.** Each risk is matched against the
    36-control library; the ones with no control behind them are flagged as **gaps**.
-6. **Audit tab → Verify chain.** Every AI suggestion and human decision, hash-chained.
+6. **Tracker tab.** Assign an owner and a due date, move an item to **In progress**.
+   Try to close it directly — the API refuses: work must be *Submitted* first, and only a
+   reviewer or owner can sign it off, with evidence. Set a due date in the past and press
+   **Run overdue check** (the same routine the 08:00 cron runs).
+7. **Audit tab → Verify chain.** Every AI suggestion and human decision, hash-chained.
 
 ### Seeding and database changes
 
@@ -271,6 +275,13 @@ what it protects) — run `python -m scripts.seed --reset` before a demo for a c
 | PATCH/DELETE | `/api/v1/action-items/{id}` | edit or remove an action item |
 | GET | `/api/v1/audit` | the append-only trail, newest first |
 | GET | `/api/v1/audit/verify` | recompute the hash chain and report any break |
+| GET | `/api/v1/action-items` | the tracker — filter by status, owner, circular, overdue |
+| GET | `/api/v1/action-items/stats` | counts for the tracker dashboard |
+| PATCH | `/api/v1/action-items/{id}` | assign an owner, set a due date or priority |
+| POST | `/api/v1/action-items/{id}/status` | move along the workflow (never to CLOSED) |
+| POST | `/api/v1/action-items/{id}/close` | **sign off** — reviewer/owner only, evidence required |
+| POST | `/api/v1/action-items/sweep` | run the overdue check now (the 08:00 cron on demand) |
+| GET | `/api/v1/auth/users` | active users, for assigning ownership |
 | POST | `/api/v1/circulars/{id}/rcm` | build (or rebuild) the Risk & Control Matrix |
 | GET | `/api/v1/circulars/{id}/rcm` | the matrix: risks, coverage, mapped controls + KCIs |
 | POST | `/api/v1/circulars/{id}/rcm/rows` | add a risk the model missed |

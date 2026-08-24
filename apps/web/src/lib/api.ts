@@ -314,6 +314,53 @@ export interface RcmRunAccepted {
   detail: string;
 }
 
+export type ItemStatus = "OPEN" | "IN_PROGRESS" | "BLOCKED" | "SUBMITTED" | "CLOSED";
+
+export interface TrackedItem {
+  id: string;
+  circular_id: string;
+  circular_ref: string | null;
+  circular_title: string | null;
+  description: string;
+  status: ItemStatus;
+  priority: PriorityName;
+  source: "AI" | "HUMAN";
+  due_date: string | null;
+  owner: { id: string; full_name: string; email: string } | null;
+  owner_function_code: string | null;
+  owner_function_name: string | null;
+  evidence_url: string | null;
+  closure_note: string | null;
+  closed_by_name: string | null;
+  closed_at: string | null;
+  last_reminder_at: string | null;
+  created_at: string;
+  /** Derived from the due date — never a stored status. */
+  is_overdue: boolean;
+  days_until_due: number | null;
+  /** The only moves the API will accept next; the UI offers exactly these. */
+  allowed_transitions: ItemStatus[];
+}
+
+export interface TrackerStats {
+  total: number;
+  open: number;
+  in_progress: number;
+  blocked: number;
+  submitted: number;
+  closed: number;
+  overdue: number;
+  due_soon: number;
+  unassigned: number;
+}
+
+export interface SweepResult {
+  checked: number;
+  newly_overdue: number;
+  reminded: number;
+  detail: string;
+}
+
 export interface AuditEntry {
   seq: number;
   entity_type: string;
@@ -453,6 +500,38 @@ export const api = {
     request<void>(`/api/v1/rcm-rows/${rowId}`, { method: "DELETE" }),
   publishRcm: (rcmId: string) =>
     request<PublishResult>(`/api/v1/rcms/${rcmId}/publish`, { method: "POST" }),
+
+  users: () => request<User[]>("/api/v1/auth/users"),
+  trackedItems: (params: Record<string, string> = {}) => {
+    const q = new URLSearchParams(params);
+    return request<TrackedItem[]>(`/api/v1/action-items?${q}`);
+  },
+  trackerStats: () => request<TrackerStats>("/api/v1/action-items/stats"),
+  assignItem: (
+    itemId: string,
+    changes: Partial<{
+      owner_id: string | null;
+      due_date: string | null;
+      priority: PriorityName;
+      description: string;
+      owner_function_code: string | null;
+    }>,
+  ) =>
+    request<TrackedItem>(`/api/v1/action-items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+  moveItem: (itemId: string, status: ItemStatus, note?: string) =>
+    request<TrackedItem>(`/api/v1/action-items/${itemId}/status`, {
+      method: "POST",
+      body: JSON.stringify({ status, note: note ?? null }),
+    }),
+  closeItem: (itemId: string, evidence: { evidence_url?: string; closure_note?: string }) =>
+    request<TrackedItem>(`/api/v1/action-items/${itemId}/close`, {
+      method: "POST",
+      body: JSON.stringify(evidence),
+    }),
+  runSweep: () => request<SweepResult>("/api/v1/action-items/sweep", { method: "POST" }),
 
   auditTrail: (params: { entity_id?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

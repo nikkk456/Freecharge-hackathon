@@ -42,7 +42,7 @@ the next stage. Ask questions *before* coding, not during.
 | 3 | **Verified citations** — every claim carries its exact source line | ✅ done | Click a claim → its source line highlights |
 | 4 | Review screen — human edits and approves the draft | ✅ done | Change the risk rating, press Approve |
 | 5 | RCM — match AI risks to the existing control library | ✅ done | A risk↔control table is produced |
-| 6 | Tracker — action items with owner, due date, status, reminders | ▶ next | An item shows "in progress" |
+| 6 | Tracker — action items with owner, due date, status, reminders | ✅ done | An item shows "in progress" |
 
 ### Stage 0 — Foundation ✅
 Docker infra (Postgres+pgvector, Redis, MinIO), all 13 ORM tables, and the **foundation
@@ -94,7 +94,9 @@ Things that are easy to get wrong here, and how they are handled:
   rejects work already in flight (stops a double-click). The worker must use the second,
   or it rejects its own job.
 
-Costs about 6k input / 2.5k output tokens and 20–70 s per circular — far inside free tier.
+Costs about 6k input / 2.5k output tokens per circular — far inside free tier. Usually
+20–70 s, but a bad free-tier spike can push it to ~270 s once the retry/fallback chain
+kicks in. That is the system working, not hanging; poll generously.
 
 ### Stage 3 — Verified citations ✅
 Every claim the UI shows — the risk rating, each impacted department, each action item —
@@ -200,9 +202,43 @@ and does not answer the risk" is a finding, not a contradiction.
 - Every risk carries a verified citation (`target_kind="rcm_row"`), reusing Stage 3's
   grounding unchanged.
 
-### Stage 6 — Tracker ▶ NEXT
-Approved action items get owner + due date + status; overdue detection and reminders via
-an ARQ cron.
+### Stage 6 — Tracker ✅
+Every extracted obligation gets a named owner, a deadline, a tracked status, and a
+closure that a regulator would accept. `modules/tracker/` owns an action item's whole
+life once Stage 2 has created it.
+
+**The state machine is data, not branching code** (`tracker/service.TRANSITIONS`), so the
+legal moves read at a glance and the UI is driven by the same table the API enforces —
+the frontend offers exactly `allowed_transitions` and cannot present an illegal move.
+
+**CLOSED is reachable only from SUBMITTED.** That is maker-checker: work must be put
+forward before anyone signs it off, so the person who did it cannot also approve it.
+Closing additionally requires the `reviewer`/`owner` role *and* evidence (a link or a
+note). "Never auto-close" only means something if closure is impossible without
+something to point at afterwards.
+
+**Overdue is derived, never stored.** There is deliberately no `OVERDUE` member in
+`ActionItemStatus`. An item can be IN_PROGRESS *and* late; writing OVERDUE into the
+status would destroy the only record of what was actually happening to it. `is_overdue`
+is computed from the due date, and the SQL filter in `list_items` mirrors that function
+exactly so the filter and the flag cannot disagree.
+
+**The cron raises alarms; it never moves work.** `sweep_overdue` runs at 08:00 daily
+(`run_at_startup=False` — a worker restart should not fire reminders). It is idempotent
+by `last_reminder_at`: a second run the same day, or an ARQ retry, notifies nobody
+twice. It writes a SYSTEM-actor audit row and changes no statuses, because a scheduled
+job advancing work would break the rule that nothing progresses without a human.
+`POST /action-items/sweep` runs the same routine on demand — a demo cannot wait until
+08:00, and being able to trigger it is how you verify it is honest.
+
+Other things that matter here:
+- **Reopening clears the closure record.** Live work carrying a stale `closed_by` would
+  misrepresent who is accountable for it now.
+- **Closed items cannot be edited or deleted** — they are the compliance record.
+- **A disabled account cannot own work**, so departed staff cannot be assigned to it.
+- **Action-item endpoints live only in `modules/tracker`.** They were moved out of
+  `modules/analysis`: two routers sharing the `/action-items` prefix would shadow each
+  other depending on include order.
 
 ---
 
@@ -240,7 +276,7 @@ unreachable, not when the worker is merely absent).
 cd apps\api
 python -m scripts.seed              # upsert seed data (idempotent)
 python -m scripts.seed --reset      # DROP the schema and rebuild
-python -m pytest                    # 196 tests; DB-backed ones skip if Postgres is down
+python -m pytest                    # 238 tests; DB-backed ones skip if Postgres is down
 python -m ruff check app tests scripts
 ```
 
@@ -288,6 +324,7 @@ apps/api/app/
     auth/      login, /me                                             (Stage 4)
     audit/     hash-chained trail + chain verification                (Stage 4)
     rcm/       generation · review · router — risk↔control matching   (Stage 5)
+    tracker/   service (state machine) · workflow (mutations) · router (Stage 6)
   worker/      queue (enqueue side) · tasks · settings
   api/router.py  ← plug every module router in here
 apps/web/src/
@@ -295,7 +332,7 @@ apps/web/src/
   components/  StatTile · RagBar · StatusChip · StatusBadge · RiskBadge · ConfidenceMeter
                AnalysisPanel · CitationChip · HighlightedText · ReviewControls
                RcmPanel · CoverageChip
-  pages/       Home (foundation) · Circulars · CircularDetail · Login · Audit
+  pages/       Home (foundation) · Circulars · CircularDetail · Login · Audit · Tracker
 ```
 
 **Route ordering is a real hazard.** Routers share the `/circulars` prefix, and the

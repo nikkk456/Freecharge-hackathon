@@ -4,11 +4,13 @@ import CircularDetail from "./pages/CircularDetail";
 import Circulars from "./pages/Circulars";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import Tracker from "./pages/Tracker";
 import { AuthProvider, useAuth } from "./lib/auth";
 
 const NAV = [
   { to: "/", label: "Foundation", end: true },
   { to: "/circulars", label: "Circulars", end: false },
+  { to: "/tracker", label: "Tracker", end: false },
   { to: "/audit", label: "Audit", end: false },
 ];
 
@@ -71,7 +73,7 @@ function Shell() {
               </button>
             </div>
           ) : (
-            <span className="text-xs text-gray-400">Stage 4 · human review</span>
+            <span className="text-xs text-gray-400">Stage 6 · tracker</span>
           )}
         </div>
       </header>
@@ -82,6 +84,7 @@ function Shell() {
             <Route path="/" element={<Home />} />
             <Route path="/circulars" element={<Circulars />} />
             <Route path="/circulars/:id" element={<CircularDetail />} />
+            <Route path="/tracker" element={<Tracker />} />
             <Route path="/audit" element={<Audit />} />
           </Routes>
         ) : (

@@ -65,6 +65,24 @@ async def login_form(
     return _token_for(await _authenticate(db, form.username, form.password))
 
 
+@router.get("/users", response_model=list[UserOut])
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[UserOut]:
+    """Active users, for assigning ownership in the tracker.
+
+    Only active accounts: someone who has left should not appear in a list of people
+    work can be handed to. Requires sign-in — this is a staff directory, not public.
+    """
+    rows = (
+        await db.execute(
+            select(User).where(User.is_active.is_(True)).order_by(User.full_name)
+        )
+    ).scalars()
+    return [UserOut.model_validate(u) for u in rows]
+
+
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)) -> UserOut:
     return UserOut.model_validate(user)

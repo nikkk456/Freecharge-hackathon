@@ -5,9 +5,16 @@ reserves for slow/retryable work so it never blocks the API.
 """
 from __future__ import annotations
 
+from arq import cron
+
 from app.core.logging import configure_logging, get_logger
 from app.worker.queue import redis_settings
-from app.worker.tasks import analyze_circular, build_rcm, ocr_circular
+from app.worker.tasks import (
+    analyze_circular,
+    build_rcm,
+    ocr_circular,
+    sweep_overdue,
+)
 
 log = get_logger("worker")
 
@@ -23,6 +30,9 @@ async def startup(ctx: dict) -> None:
 
 class WorkerSettings:
     functions = [ocr_circular, analyze_circular, build_rcm]
+    # Overdue detection runs every morning at 08:00. `run_at_startup=False` on purpose:
+    # a worker restart should not fire reminders, and the sweep is idempotent anyway.
+    cron_jobs = [cron(sweep_overdue, hour={8}, minute={0}, run_at_startup=False)]
     on_startup = startup
     redis_settings = redis_settings()
     # Design-for-failure defaults.

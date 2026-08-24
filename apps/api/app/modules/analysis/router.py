@@ -16,8 +16,6 @@ from app.models.user import User
 from app.modules.analysis import review, service
 from app.modules.analysis.schemas import (
     ActionItemCreate,
-    ActionItemOut,
-    ActionItemPatch,
     AnalysisOut,
     AnalysisPatch,
     AnalysisRunAccepted,
@@ -222,29 +220,6 @@ async def publish_analysis(
     )
 
 
-# ---------------------------------------------------------------------------
-# Action items
-# ---------------------------------------------------------------------------
-items_router = APIRouter(prefix="/action-items", tags=["review"])
-
-
-@items_router.patch("/{item_id}", response_model=ActionItemOut)
-async def edit_action_item(
-    item_id: uuid.UUID,
-    changes: ActionItemPatch,
-    db: AsyncSession = Depends(get_db),
-    actor: User = Depends(get_current_user),
-) -> ActionItemOut:
-    item = await review.get_action_item(db, item_id)
-    await review.patch_action_item(db, item, changes, actor)
-    return await service.action_item_out(db, item)
-
-
-@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_action_item(
-    item_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    actor: User = Depends(get_current_user),
-) -> None:
-    item = await review.get_action_item(db, item_id)
-    await review.delete_action_item(db, item, actor)
+# Action-item endpoints deliberately live in `modules/tracker`, not here. Two routers
+# sharing the /action-items prefix would silently shadow each other depending on
+# include order, and an item's lifecycle is the tracker's domain once it exists.
