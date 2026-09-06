@@ -112,6 +112,11 @@
        this marks "you are looking here", which is selection, not health. */
     --highlight: hsl(334 42% 87%);
     --highlight-edge: hsl(334 55% 55%);
+    /* Search hits. Deliberately the teal side rather than another pink: a reviewer
+       searching inside a cited line must be able to tell the two marks apart at a
+       glance, and the conventional find-in-page yellow would read as a warning. */
+    --search-hit: hsl(176 52% 85%);
+    --search-hit-edge: hsl(176 60% 34%);
 
     --chart-surface: 0 0% 100%;
   }
@@ -181,6 +186,8 @@
     --seq-track: hsl(176 25% 24%);
     --highlight: hsl(334 38% 30%);
     --highlight-edge: hsl(334 55% 58%);
+    --search-hit: hsl(176 38% 27%);
+    --search-hit-edge: hsl(176 48% 56%);
 
     --chart-surface: 0 0% 16%;
   }
@@ -224,5 +231,32 @@
   }
   .scroll-slim:hover::-webkit-scrollbar-thumb {
     background-color: hsl(var(--brand) / 0.45);
+  }
+
+  /* The highlight on the login panel's grounded-claim specimen. Animating
+     background-size (not width) keeps the text on one line while the mark
+     sweeps in, which is what "we located this span" should look like.
+     Anyone who has asked not to see motion just gets the finished state. */
+  .cite-sweep {
+    background-image: linear-gradient(
+      hsl(var(--primary-foreground) / 0.26),
+      hsl(var(--primary-foreground) / 0.26)
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    animation: cite-sweep 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+  }
+  @keyframes cite-sweep {
+    from {
+      background-size: 0% 100%;
+    }
+    to {
+      background-size: 100% 100%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cite-sweep {
+      animation: none;
+    }
   }
 }

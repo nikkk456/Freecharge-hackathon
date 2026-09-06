@@ -4,7 +4,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import KciStatus
+from app.models.enums import KciFrequency, KciStatus
 
 
 class FunctionOut(BaseModel):
@@ -25,6 +25,9 @@ class KciOut(BaseModel):
     target: str | None
     current_value: str | None
     status: KciStatus
+    # How often the reading is refreshed. "99.6% vs >=99%" means something different
+    # measured daily than measured quarterly, so a detail view has to say which.
+    frequency: KciFrequency
 
 
 class ControlOut(BaseModel):

@@ -4,9 +4,11 @@ import {
   MailIcon,
   Eye,
   EyeOff,
-  Brain,
+  FileSearch,
+  ShieldCheck,
   Grid3x3,
-  Gauge,
+  ListChecks,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import Callout from "@/components/Callout";
@@ -23,6 +25,23 @@ const DEMO = [
   { email: "reviewer@cac.dev", password: "reviewer123", note: "can approve" },
   { email: "owner@cac.dev", password: "owner123", note: "can approve" },
   { email: "admin@cac.dev", password: "admin123", note: "everything" },
+];
+
+// The four stages the app actually performs, left to right.
+const PIPELINE = [
+  { icon: FileSearch, label: "Ingest the circular" },
+  { icon: ShieldCheck, label: "Ground every claim in the source" },
+  { icon: Grid3x3, label: "Map risks to the control library" },
+  { icon: ListChecks, label: "Track each obligation to closure" },
+];
+
+// Each stage a shade more present than the last. Static so Tailwind's
+// scanner sees them; index-keyed to PIPELINE.
+const TINT = [
+  "bg-primary-foreground/15",
+  "bg-primary-foreground/25",
+  "bg-primary-foreground/35",
+  "bg-primary-foreground/45",
 ];
 
 export default function Login() {
@@ -81,26 +100,28 @@ export default function Login() {
               financial institutions.
             </p>
 
-            <div className="mt-12 grid grid-cols-2 gap-6">
-              <Stat value="99.99%" label="Uptime" />
-              <Stat value="256-bit" label="Encryption" />
-            </div>
+            <GroundedClaim />
           </div>
 
           <div className="relative z-10">
+            {/* The pipeline, in order — each stage hands off to the next,
+                so they overlap. Hover lifts one circle out of the stack;
+                `z-10` is what makes it clear its neighbours, since -space-x
+                leaves later siblings painted on top. Fanning the whole group
+                on hover was tried and merged all four into one blob. */}
             <div className="mb-4 flex -space-x-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full border-2 border-brand bg-primary-foreground/20">
-              <Brain className="h-5 w-5" />
-              </div>
-              <div className="grid h-10 w-10 place-items-center rounded-full border-2 border-brand bg-primary-foreground/30">
-                <Grid3x3 className="h-5 w-5" />
-              </div>
-              <div className="grid h-10 w-10 place-items-center rounded-full border-2 border-brand bg-primary-foreground/40">
-               <Gauge className="h-5 w-5" />
-              </div>
+              {PIPELINE.map(({ icon: Icon, label }, i) => (
+                <div
+                  key={label}
+                  title={label}
+                  className={`relative grid h-10 w-10 place-items-center rounded-full border-2 border-brand transition-transform duration-200 ease-out hover:z-10 hover:-translate-y-1.5 hover:scale-110 ${TINT[i]}`}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={1.75} />
+                </div>
+              ))}
             </div>
             <p className="text-sm text-primary-foreground/60">
-              AI-driven compliance for modern financial institutions.
+              Ingest, ground, map, close — with a person on every decision.
             </p>
           </div>
         </aside>
@@ -246,14 +267,55 @@ export default function Login() {
 
 /* ---------- small presentational components ---------- */
 
-function Stat({ value, label }: { value: string; label: string }) {
+/**
+ * The product's whole argument, at the size of a business card: an AI claim,
+ * and the line of the circular it came from. Deliberately not a statistic —
+ * a compliance tool that exists to make claims checkable should not open with
+ * a number nobody can check.
+ */
+function GroundedClaim() {
   return (
-    <div>
-      <p className="text-3xl font-bold leading-none text-primary-foreground">
-        {value}
-      </p>
-      <p className="mt-1.5 text-sm text-primary-foreground/60">{label}</p>
-    </div>
+    <figure className="mt-11 max-w-sm">
+      <figcaption className="mb-4 flex items-center gap-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/50">
+          Every claim, traced to its line
+        </span>
+        <span className="rounded-full px-2 py-px text-[9px] font-bold uppercase tracking-[0.14em] text-primary-foreground/50 ring-1 ring-primary-foreground/25">
+          Example
+        </span>
+      </figcaption>
+
+      {/* A thread from the claim down to its evidence. No card: the
+          relationship is the design, and a box around it only adds edges. */}
+      <div className="relative pl-6">
+        <span
+          aria-hidden
+          className="absolute left-[3px] top-3 bottom-6 w-px bg-gradient-to-b from-primary-foreground/45 via-primary-foreground/20 to-transparent"
+        />
+        <span
+          aria-hidden
+          className="absolute left-0 top-2.5 h-[7px] w-[7px] rounded-full bg-primary-foreground/70"
+        />
+
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-1.5 backdrop-blur-sm ring-1 ring-inset ring-primary-foreground/20">
+          <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="text-xs font-semibold">Risk rating: High</span>
+        </div>
+
+        <p className="mt-4 font-serif text-[15px] leading-[1.75] text-primary-foreground/85">
+          &ldquo;&hellip;recovery agents shall not contact the borrower{" "}
+          <span className="cite-sweep rounded px-1 py-0.5 text-primary-foreground">
+            outside the hours of 8:00 a.m. and 7:00 p.m.
+          </span>{" "}
+          &hellip;&rdquo;
+        </p>
+
+        <div className="mt-3.5 flex items-center gap-1.5 text-[11px] text-primary-foreground/55">
+          <ShieldCheck className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          Verified — this exact span exists in the uploaded circular
+        </div>
+      </div>
+    </figure>
   );
 }
 

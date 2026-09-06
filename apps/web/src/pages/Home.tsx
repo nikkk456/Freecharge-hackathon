@@ -1,5 +1,6 @@
 import { Building2, FileText, ListChecks, Search, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import ControlDetailDialog from "@/components/ControlDetailDialog";
 import EmptyState from "@/components/EmptyState";
 import { StatusGlyph } from "@/components/StatusGlyph";
 import StatusChip, { statusColor, statusLabel, statusTone } from "@/components/StatusChip";
@@ -33,6 +34,9 @@ export default function Home() {
   const [controls, setControls] = useState<ControlOut[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  // Which control the reader has opened. Held by id, not by object, so the card
+  // re-reads from `controls` and a refresh cannot leave a stale record on screen.
+  const [openControl, setOpenControl] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([api.health(), api.stats(), api.controls()])
@@ -295,11 +299,21 @@ export default function Home() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((c) => (
-              <ControlCard key={c.id} control={c} kci={c.kcis[0]} />
+              <ControlCard
+                key={c.id}
+                control={c}
+                kci={c.kcis[0]}
+                onOpen={() => setOpenControl(c.id)}
+              />
             ))}
           </div>
         )}
       </section>
+
+      <ControlDetailDialog
+        control={controls.find((c) => c.id === openControl) ?? null}
+        onClose={() => setOpenControl(null)}
+      />
     </div>
   );
 }
@@ -330,13 +344,31 @@ function Stat({
 }
 
 /** One control, with its indicator's reading right on the face of the card — the
- *  fact that makes Stage 5's "covered by C-006, currently amber" trustworthy. */
-function ControlCard({ control, kci }: { control: ControlOut; kci: KciOut | undefined }) {
+ *  fact that makes Stage 5's "covered by C-006, currently amber" trustworthy.
+ *
+ *  A button rather than an article: the card is the way into the full record, and the
+ *  hover lift was already promising that. Only the first KCI fits here, so a control
+ *  with three indicators reads the same as one with a single indicator until it is
+ *  opened. */
+function ControlCard({
+  control,
+  kci,
+  onOpen,
+}: {
+  control: ControlOut;
+  kci: KciOut | undefined;
+  onOpen: () => void;
+}) {
+  const more = control.kcis.length - 1;
   return (
-    <article
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open the full record for ${control.code} ${control.name}`}
       className={cn(
-        "group flex flex-col rounded-xl border bg-card p-4 shadow-sm transition-all",
+        "group flex flex-col rounded-xl border bg-card p-4 text-left shadow-sm transition-all",
         "hover:-translate-y-0.5 hover:border-brand-line/40 hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         kci?.status === "red" ? "border-status-critical/30" : "border-border",
       )}
     >
@@ -376,8 +408,13 @@ function ControlCard({ control, kci }: { control: ControlOut; kci: KciOut | unde
             </span>
           </p>
         )}
+        {more > 0 && (
+          <p className="text-2xs text-muted-foreground">
+            +{more} more indicator{more === 1 ? "" : "s"}
+          </p>
+        )}
       </div>
-    </article>
+    </button>
   );
 }
 

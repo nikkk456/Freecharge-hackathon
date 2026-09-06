@@ -19,7 +19,7 @@ import EmptyState from "@/components/EmptyState";
 import ItemStatusChip, { OverdueChip, itemStatusLabel } from "@/components/ItemStatusChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectItem } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   api,
@@ -392,19 +392,19 @@ function ItemRow({
               aria-label={`Owner for: ${item.description.slice(0, 40)}`}
               value={item.owner?.id ?? ""}
               disabled={busy}
-              onChange={(e) =>
+              onValueChange={(ownerId) =>
                 void onRun(
-                  () => api.assignItem(item.id, { owner_id: e.target.value || null }),
+                  () => api.assignItem(item.id, { owner_id: ownerId || null }),
                   "Owner updated",
                 )
               }
               className="w-40"
             >
-              <option value="">Unassigned</option>
+              <SelectItem value="">Unassigned</SelectItem>
               {users.map((u) => (
-                <option key={u.id} value={u.id}>
+                <SelectItem key={u.id} value={u.id}>
                   {u.full_name}
-                </option>
+                </SelectItem>
               ))}
             </Select>
           </label>

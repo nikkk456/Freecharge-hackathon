@@ -18,6 +18,7 @@ from app.modules.circulars.parser import (
     PdfParseError,
     assemble,
     clean_page_text,
+    drop_unreadable_text,
     extract_text_layer,
     pages_needing_ocr,
     render_pages,
@@ -75,10 +76,12 @@ def ocr_and_assemble(data: bytes) -> ParsedPdf:
         image = images.get(number)
         if image is None:
             continue  # unrenderable page; it stays `empty` rather than failing the file
-        text = strip_page_number(clean_page_text(engine.read(image)), number)
+        cleaned, unreadable = drop_unreadable_text(clean_page_text(engine.read(image)))
+        text = strip_page_number(cleaned, number)
         if text:
             by_number[number].text = text
             by_number[number].source = "ocr"
+            by_number[number].unreadable_chars = unreadable
 
     log.info("ocr_complete", engine=engine.name, pages=len(pending))
     return assemble(pages)

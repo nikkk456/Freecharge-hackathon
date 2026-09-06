@@ -12,8 +12,8 @@
     "kci_name": "LSP due-diligence coverage",
     "linked_control": "C-002",
     "target": "100% of active LSPs",
-    "current_value": "92%",
-    "status": "amber"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-003",
@@ -44,24 +44,24 @@
     "kci_name": "Recovery calls within window",
     "linked_control": "C-006",
     "target": ">=99%",
-    "current_value": "96.3%",
-    "status": "amber"
+    "current_value": "99.6%",
+    "status": "green"
   },
   {
     "kci_id": "K-007",
     "kci_name": "Grievance TAT breach rate",
     "linked_control": "C-007",
     "target": "<1%",
-    "current_value": "3.2%",
-    "status": "red"
+    "current_value": "0.4%",
+    "status": "green"
   },
   {
     "kci_id": "K-008",
     "kci_name": "DLA consent capture rate",
     "linked_control": "C-008",
     "target": "100%",
-    "current_value": "99.1%",
-    "status": "amber"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-009",
@@ -80,12 +80,20 @@
     "status": "green"
   },
   {
+    "kci_id": "K-011",
+    "kci_name": "Re-KYC completed on schedule",
+    "linked_control": "C-011",
+    "target": "100% of due cases",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
     "kci_id": "K-012",
     "kci_name": "Customers risk-categorised",
     "linked_control": "C-012",
     "target": "100%",
-    "current_value": "98.5%",
-    "status": "amber"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-013",
@@ -108,32 +116,32 @@
     "kci_name": "Wallet load-limit breaches",
     "linked_control": "C-015",
     "target": "0",
-    "current_value": "2",
-    "status": "red"
+    "current_value": "0",
+    "status": "green"
   },
   {
     "kci_id": "K-016",
     "kci_name": "Nodal reconciliation breaks",
     "linked_control": "C-016",
     "target": "0 open >T+1",
-    "current_value": "1",
-    "status": "amber"
+    "current_value": "0",
+    "status": "green"
   },
   {
     "kci_id": "K-017",
     "kci_name": "UPI auto-reversal within TAT",
     "linked_control": "C-017",
     "target": ">=99%",
-    "current_value": "97.5%",
-    "status": "amber"
+    "current_value": "99.4%",
+    "status": "green"
   },
   {
     "kci_id": "K-018",
     "kci_name": "Failed-txn compensation paid",
     "linked_control": "C-018",
     "target": "100% of eligible",
-    "current_value": "94%",
-    "status": "red"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-019",
@@ -152,6 +160,14 @@
     "status": "green"
   },
   {
+    "kci_id": "K-021",
+    "kci_name": "PCI-DSS attestation currency",
+    "linked_control": "C-021",
+    "target": "valid AOC on file",
+    "current_value": "valid",
+    "status": "green"
+  },
+  {
     "kci_id": "K-022",
     "kci_name": "Data localisation exceptions",
     "linked_control": "C-022",
@@ -164,8 +180,16 @@
     "kci_name": "Purpose-limitation exceptions",
     "linked_control": "C-023",
     "target": "0",
-    "current_value": "3",
-    "status": "amber"
+    "current_value": "0",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-024",
+    "kci_name": "Records purged per retention schedule",
+    "linked_control": "C-024",
+    "target": "100% of due records",
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-025",
@@ -180,14 +204,22 @@
     "kci_name": "VAPT findings closed on time",
     "linked_control": "C-026",
     "target": ">=95%",
-    "current_value": "88%",
-    "status": "amber"
+    "current_value": "97%",
+    "status": "green"
   },
   {
     "kci_id": "K-027",
     "kci_name": "Cyber incidents reported <6h",
     "linked_control": "C-027",
     "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-028",
+    "kci_name": "DR / BCP drills completed",
+    "linked_control": "C-028",
+    "target": "100% per plan",
     "current_value": "100%",
     "status": "green"
   },
@@ -212,24 +244,24 @@
     "kci_name": "Outsourcing contracts compliant",
     "linked_control": "C-031",
     "target": "100%",
-    "current_value": "90%",
-    "status": "amber"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-032",
     "kci_name": "Vendor risk assessments current",
     "linked_control": "C-032",
     "target": "100%",
-    "current_value": "85%",
-    "status": "red"
+    "current_value": "100%",
+    "status": "green"
   },
   {
     "kci_id": "K-033",
     "kci_name": "Fraud alert triage within SLA",
     "linked_control": "C-033",
     "target": ">=95%",
-    "current_value": "93%",
-    "status": "amber"
+    "current_value": "96%",
+    "status": "green"
   },
   {
     "kci_id": "K-034",
@@ -240,11 +272,179 @@
     "status": "green"
   },
   {
+    "kci_id": "K-035",
+    "kci_name": "Regulatory changes through change control",
+    "linked_control": "C-035",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
     "kci_id": "K-036",
     "kci_name": "Penal-charge disclosure accuracy",
     "linked_control": "C-036",
     "target": "100%",
     "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-037",
+    "kci_name": "De-tokenisation outside the card network",
+    "linked_control": "C-037",
+    "target": "0",
+    "current_value": "0",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-038",
+    "kci_name": "Token generation integrity checks passed",
+    "linked_control": "C-038",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-039",
+    "kci_name": "Token request logs retrievable",
+    "linked_control": "C-039",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-040",
+    "kci_name": "Token requestors attesting PAN non-storage",
+    "linked_control": "C-040",
+    "target": "100% of active",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-041",
+    "kci_name": "Token requestors certified before go-live",
+    "linked_control": "C-041",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-042",
+    "kci_name": "Payment-chain entities certified",
+    "linked_control": "C-042",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-043",
+    "kci_name": "Registrations with explicit AFA consent",
+    "linked_control": "C-043",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-044",
+    "kci_name": "Use-case de-registration honoured",
+    "linked_control": "C-044",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-045",
+    "kci_name": "Customer token-limit changes applied",
+    "linked_control": "C-045",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-046",
+    "kci_name": "Tokenised txns under velocity check",
+    "linked_control": "C-046",
+    "target": "100%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-047",
+    "kci_name": "Open token / key storage audit findings",
+    "linked_control": "C-047",
+    "target": "0",
+    "current_value": "0",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-048",
+    "kci_name": "Token de-activation after device-loss report",
+    "linked_control": "C-048",
+    "target": "<=5 min",
+    "current_value": "2 min",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-049",
+    "kci_name": "Token dispute resolution within SLA",
+    "linked_control": "C-049",
+    "target": ">=98%",
+    "current_value": "99.2%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-050",
+    "kci_name": "Identified-device verification coverage",
+    "linked_control": "C-050",
+    "target": "100% of token txns",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-051",
+    "kci_name": "Tokenisation anomaly alerts triaged",
+    "linked_control": "C-051",
+    "target": ">=95%",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-052",
+    "kci_name": "Issuer token-registration rules current",
+    "linked_control": "C-052",
+    "target": "100% of BINs",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-053",
+    "kci_name": "CERT-In tokenisation audit completed",
+    "linked_control": "C-053",
+    "target": "1 per year",
+    "current_value": "1 completed",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-054",
+    "kci_name": "Tokenisation audit report furnished to RBI",
+    "linked_control": "C-054",
+    "target": "100% within timeline",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-055",
+    "kci_name": "Annex 2 return filed by the 10th",
+    "linked_control": "C-055",
+    "target": "100% of months",
+    "current_value": "100%",
+    "status": "green"
+  },
+  {
+    "kci_id": "K-056",
+    "kci_name": "Customer charges levied for tokenisation",
+    "linked_control": "C-056",
+    "target": "0",
+    "current_value": "0",
     "status": "green"
   }
 ]

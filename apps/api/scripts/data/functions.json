@@ -88,5 +88,10 @@
     "id": "F18",
     "name": "Marketing & Communications",
     "description": "Customer communications, advertising and promotional messaging."
+  },
+  {
+    "id": "F19",
+    "name": "Card Tokenisation & Token Requestor Oversight",
+    "description": "Token lifecycle, token requestor certification, identified-device binding and de-tokenisation control for tokenised card transactions."
   }
 ]

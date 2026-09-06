@@ -1,4 +1,4 @@
-import { FileSearch, Quote, Search, X } from "lucide-react";
+import { FileSearch, PanelRightClose, PanelRightOpen, Quote, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import HighlightedText from "@/components/HighlightedText";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ export default function DocumentPane({
   ocrPages,
   activeCitation,
   onClearCitation,
+  collapsed = false,
+  onToggleCollapse,
   className,
 }: {
   pages: DocPage[];
@@ -44,6 +46,11 @@ export default function DocumentPane({
   ocrPages: number;
   activeCitation: Citation | null;
   onClearCitation: () => void;
+  /** Collapsed to a rail. The pane still renders, because the control that brings it
+   *  back belongs to the pane — a button on the circular's header would be describing
+   *  a card it is not part of. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   className?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -87,6 +94,31 @@ export default function DocumentPane({
     return () => window.clearTimeout(id);
   }, [activeCitation]);
 
+  if (collapsed) {
+    return (
+      <section
+        aria-label="Source document"
+        className="flex shrink-0 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm lg:h-full lg:w-11 lg:flex-col lg:py-3"
+      >
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={onToggleCollapse}
+          aria-expanded={false}
+          aria-label="Show the source document"
+          title="Show the source document"
+          className="shrink-0 text-brand hover:bg-brand-surface"
+        >
+          <PanelRightOpen />
+        </Button>
+        <span className="flex items-center gap-1.5 text-xs font-semibold tracking-tight text-muted-foreground lg:[writing-mode:vertical-rl]">
+          <FileSearch aria-hidden className="size-3.5 text-brand" />
+          Source document
+        </span>
+      </section>
+    );
+  }
+
   return (
     <section
       className={cn(
@@ -107,18 +139,33 @@ export default function DocumentPane({
             )}
           </h2>
 
-          <div className="relative w-52">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a phrase…"
-              aria-label="Find a phrase in the extracted text"
-              className="h-8 pl-8 text-xs"
-            />
+          <div className="flex items-center gap-1.5">
+            <div className="relative w-52">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Find a phrase…"
+                aria-label="Find a phrase in the extracted text"
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+            {onToggleCollapse && (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={onToggleCollapse}
+                aria-expanded
+                aria-label="Hide the source document"
+                title="Hide the source document"
+                className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <PanelRightClose />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -250,6 +297,8 @@ export default function DocumentPane({
                   pageStart={page.char_start}
                   charStart={activeCitation?.char_start ?? null}
                   charEnd={activeCitation?.char_end ?? null}
+                  query={query}
+                  scrollToMatch={hits?.pages[0] === page.page}
                   scrollKey={`${activeCitation?.target_kind}:${activeCitation?.target_ref}`}
                 />
               </pre>

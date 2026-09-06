@@ -4,8 +4,6 @@ import {
   FileText,
   Grid2x2,
   Loader2,
-  PanelRightClose,
-  PanelRightOpen,
   RotateCw,
   Sparkles,
 } from "lucide-react";
@@ -31,7 +29,7 @@ import {
   type Rcm,
 } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
-import { cn } from "@/lib/utils";
+import { cn, isoDay } from "@/lib/utils";
 
 /** Elapsed seconds since the caller says work started. The AI leg can legitimately
  *  run for minutes once the retry/fallback chain kicks in, so a static "usually
@@ -330,25 +328,23 @@ export default function CircularDetail() {
                 Original PDF
               </a>
             </Button>
-            {hasText && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowDoc((v) => !v)}
-                aria-pressed={showDoc}
-                aria-label={showDoc ? "Hide the source document" : "Show the source document"}
-                title={showDoc ? "Hide the source document" : "Show the source document"}
-                className={cn(showDoc && "border-brand-line/40 bg-brand-surface text-brand")}
-              >
-                {showDoc ? <PanelRightClose /> : <PanelRightOpen />}
-              </Button>
-            )}
           </div>
         </div>
 
         {/* Meta strip — the document's facts, plus the one number that matters. */}
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border bg-muted/40 px-5 py-2.5">
           <Meta label="Issued" value={doc.issued_date ?? "—"} />
+          {/* Two different dates, and confusing them matters: "Issued" is the
+              regulator's date on the circular itself, this is when we took it in.
+              A 2021 circular uploaded today is a backlog item, not a new obligation. */}
+          <Meta
+            label="Uploaded"
+            value={
+              <span title={new Date(doc.created_at).toLocaleString()}>
+                {isoDay(doc.created_at)}
+              </span>
+            }
+          />
           <Meta label="Pages" value={doc.page_count ?? "—"} />
           <Meta label="Characters" value={doc.char_count.toLocaleString()} />
           {ocrPages > 0 && (
@@ -402,7 +398,11 @@ export default function CircularDetail() {
       <div
         className={cn(
           "grid min-h-0 flex-1 gap-4",
-          showDoc && hasText ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]" : "lg:grid-cols-1",
+          !hasText
+            ? "lg:grid-cols-1"
+            : showDoc
+              ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]"
+              : "lg:grid-cols-[minmax(0,1fr)_auto]",
         )}
       >
         {/* Left — the reviewer's work */}
@@ -533,13 +533,15 @@ export default function CircularDetail() {
         </div>
 
         {/* Right — the evidence, always beside the claim */}
-        {showDoc && hasText && (
+        {hasText && (
           <DocumentPane
             pages={pages}
             pageCount={doc.page_count}
             ocrPages={ocrPages}
             activeCitation={activeCitation}
             onClearCitation={() => setActiveCitation(null)}
+            collapsed={!showDoc}
+            onToggleCollapse={() => setShowDoc((v) => !v)}
             className="h-[70vh] min-w-0 lg:h-auto"
           />
         )}

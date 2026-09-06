@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Select, SelectItem } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { RiskRating } from "@/lib/api";
 
@@ -91,13 +91,13 @@ export function RiskSelector({
         size="sm"
         aria-label="Override the risk rating"
         value={value}
-        onChange={(e) => onChange(e.target.value as RiskRating)}
+        onValueChange={(next) => onChange(next as RiskRating)}
         className="w-[7.5rem]"
       >
         {RATINGS.map((rating) => (
-          <option key={rating} value={rating}>
+          <SelectItem key={rating} value={rating}>
             {rating}
-          </option>
+          </SelectItem>
         ))}
       </Select>
     </label>

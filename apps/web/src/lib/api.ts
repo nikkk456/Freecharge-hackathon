@@ -70,6 +70,8 @@ export interface FunctionOut {
   description: string | null;
 }
 
+export type KciFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY";
+
 export interface KciOut {
   id: string;
   code: string;
@@ -77,6 +79,9 @@ export interface KciOut {
   target: string | null;
   current_value: string | null;
   status: RagStatus;
+  /** How often the reading is refreshed — "99.6% vs >=99%" means something different
+   *  measured daily than measured quarterly. */
+  frequency: KciFrequency;
 }
 
 export interface ControlOut {
@@ -120,6 +125,9 @@ export interface PageSpan {
   char_start: number;
   char_end: number;
   source: TextSource;
+  /** Characters removed because the PDF's font could not encode them — see
+   *  `parser.drop_unreadable_text`. Absent on page maps stored before that existed. */
+  unreadable_chars?: number;
 }
 
 export interface OcrStatus {

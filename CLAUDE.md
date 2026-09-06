@@ -61,6 +61,23 @@ Upload any PDF → stored in MinIO → text extracted → `raw_text` + `page_map
   instead — slower, but the demo never dies.
 - `ref_no` and `issued_date` are pulled out by **regex, not AI**. The model refines the
   title at Stage 2.
+- **The extracted text is the document's English; Devanagari is removed, not decoded.**
+  RBI's bilingual letterhead does not survive the text layer. It comes out broken two
+  ways at once: conjuncts the font's ToUnicode CMap has no entry for (`क��ीय` for
+  केंद्रीय — those are real U+FFFDs) and vowel signs stored where they are *drawn* rather
+  than where Unicode puts them (`िनपटान` for निपटान). Reversing the second is mechanical
+  and tempting; around a U+FFFD hole it yields a different, valid-*looking* Hindi word,
+  and a plausible wrong word is worse than a visible misspelling. So `drop_unreadable_text()`
+  strips Devanagari outright and repairs nothing. Latin welded to a Hindi token is kept,
+  because it is English and it is correct: `फोनTel:` → `Tel:`, `ई-मेलe-mail` → `e-mail`.
+  Words the font holed go **whole** (deleting just the U+FFFDs from `क��ीय` splices `कीय`
+  out of the two halves), and a line is dropped once nothing with a Latin letter survives
+  it — the address block leaves `", , 14, ,, -"`, and a model quoting that fragment would
+  produce a citation that verifies perfectly against text carrying no meaning. Only lines
+  the function actually rewrote face that test, so a numeric English line (`400001`) is
+  never at risk, and only Devanagari is targeted — ₹ stays, since a rupee figure is often
+  the obligation itself. Lines with neither pass through byte for byte: the 21k-char
+  recovery circular re-parses identical.
 
 ### Stage 2 — AI analysis ✅
 An ARQ task calls Gemini and writes an `AIAnalysis` row with `status=DRAFT`: summary,
@@ -331,7 +348,11 @@ apps/web/src/
   lib/api.ts   typed client · usePolling.ts · auth.tsx (AuthProvider/useAuth)
   components/  StatTile · RagBar · StatusChip · StatusBadge · RiskBadge · ConfidenceMeter
                AnalysisPanel · CitationChip · HighlightedText · ReviewControls
-               RcmPanel · CoverageChip
+               RcmPanel · CoverageChip · ControlDetailDialog
+  components/ui/  Dialog (informational) vs AlertDialog (role=alertdialog, interrupts
+               for a decision) · Select (Radix listbox; `""` is the sentinel for
+               "nothing chosen", translated in the wrapper because Radix rejects an
+               empty item value)
   pages/       Home (foundation) · Circulars · CircularDetail · Login · Audit · Tracker
 ```
 
@@ -380,6 +401,11 @@ Adding a module: `app/modules/<name>/{router,service,schemas}.py` → include in
   pages were machine-read. Installing Tesseract improves it.
 - Hindi/Devanagari headers OCR poorly with the default models (needs `hin.traineddata`
   and `OCR_LANGUAGES=eng+hin`). Body text is English, so this is cosmetic.
+- Devanagari is **dropped, not recovered**: the extracted text is the English document.
+  RBI writes the obligations in English and repeats the Hindi letterhead in English on the
+  next line, so nothing of substance goes — but a circular that carried a Hindi-only
+  obligation would lose it silently. Reading it would need the page rasterised and OCR'd
+  in Hindi, which is the bullet above.
 - A PDF whose text layer exists but is garbage (bad embedded encoding) is not detected —
   it is treated as valid text. No reliable heuristic was worth the false positives.
 - If the worker is down, scanned uploads stay at `PARSING` until it comes back.

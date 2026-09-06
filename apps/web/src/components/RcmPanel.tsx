@@ -8,7 +8,7 @@ import VerificationBadge from "@/components/VerificationBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectItem } from "@/components/ui/select";
 import {
   api,
   CAN_PUBLISH,
@@ -184,14 +184,14 @@ export default function RcmPanel({
               <Select
                 size="sm"
                 value={draft.code}
-                onChange={(e) => setDraft({ ...draft, code: e.target.value })}
-                className="mt-1 w-48"
+                onValueChange={(code) => setDraft({ ...draft, code })}
+                className="mt-1 w-64"
               >
-                <option value="">None — this is a gap</option>
+                <SelectItem value="">None — this is a gap</SelectItem>
                 {controls.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code}
-                  </option>
+                  <SelectItem key={c.code} value={c.code} code={c.code}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </Select>
             </label>
@@ -270,19 +270,17 @@ export default function RcmPanel({
                         aria-label={`Coverage for: ${row.risk_text.slice(0, 40)}`}
                         value={row.coverage}
                         disabled={busy}
-                        onChange={(e) =>
+                        onValueChange={(coverage) =>
                           void run(() =>
-                            api.editRcmRow(row.id, {
-                              coverage: e.target.value as CoverageName,
-                            }),
+                            api.editRcmRow(row.id, { coverage: coverage as CoverageName }),
                           )
                         }
                         className="w-32"
                       >
                         {COVERAGES.map((c) => (
-                          <option key={c} value={c}>
+                          <SelectItem key={c} value={c}>
                             {c}
-                          </option>
+                          </SelectItem>
                         ))}
                       </Select>
                     ) : (
@@ -296,20 +294,18 @@ export default function RcmPanel({
                         aria-label={`Control for: ${row.risk_text.slice(0, 40)}`}
                         value={row.control?.code ?? ""}
                         disabled={busy}
-                        onChange={(e) =>
+                        onValueChange={(code) =>
                           void run(() =>
-                            api.editRcmRow(row.id, {
-                              mapped_control_code: e.target.value || null,
-                            }),
+                            api.editRcmRow(row.id, { mapped_control_code: code || null }),
                           )
                         }
-                        className="w-32"
+                        className="w-64"
                       >
-                        <option value="">None — gap</option>
+                        <SelectItem value="">None — gap</SelectItem>
                         {controls.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.code}
-                          </option>
+                          <SelectItem key={c.code} value={c.code} code={c.code}>
+                            {c.name}
+                          </SelectItem>
                         ))}
                       </Select>
                     ) : row.control ? (

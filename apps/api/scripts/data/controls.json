@@ -74,7 +74,7 @@
     "control_name": "Periodic KYC updation (re-KYC)",
     "description": "Re-KYC performed on schedule by customer risk band.",
     "owner_function": "F05",
-    "linked_kci": null
+    "linked_kci": "K-011"
   },
   {
     "control_id": "C-012",
@@ -144,7 +144,7 @@
     "control_name": "Card network (PCI-DSS) compliance",
     "description": "Cardholder data environment maintained to PCI-DSS.",
     "owner_function": "F04",
-    "linked_kci": null
+    "linked_kci": "K-021"
   },
   {
     "control_id": "C-022",
@@ -165,7 +165,7 @@
     "control_name": "Data retention & purging schedule",
     "description": "Data retained only for the defined period, then purged.",
     "owner_function": "F10",
-    "linked_kci": null
+    "linked_kci": "K-024"
   },
   {
     "control_id": "C-025",
@@ -193,7 +193,7 @@
     "control_name": "Business continuity & DR drill",
     "description": "DR/BCP plan maintained and drills conducted periodically.",
     "owner_function": "F08",
-    "linked_kci": null
+    "linked_kci": "K-028"
   },
   {
     "control_id": "C-029",
@@ -242,7 +242,7 @@
     "control_name": "Product regulatory change management",
     "description": "Regulatory changes assessed and productised via change control.",
     "owner_function": "F16",
-    "linked_kci": null
+    "linked_kci": "K-035"
   },
   {
     "control_id": "C-036",
@@ -250,5 +250,145 @@
     "description": "Penal charges levied as charges (not capitalised interest) and disclosed.",
     "owner_function": "F16",
     "linked_kci": "K-036"
+  },
+  {
+    "control_id": "C-037",
+    "control_name": "Tokenisation / de-tokenisation restricted to card network",
+    "description": "Only the authorised card network performs tokenisation and de-tokenisation; PAN recovery is feasible for the network alone.",
+    "owner_function": "F19",
+    "linked_kci": "K-037"
+  },
+  {
+    "control_id": "C-038",
+    "control_name": "Token-PAN irreversibility & token generation integrity",
+    "description": "Cryptographic safeguards ensure PAN cannot be derived from a token or vice versa; token generation integrity monitored continuously.",
+    "owner_function": "F08",
+    "linked_kci": "K-038"
+  },
+  {
+    "control_id": "C-039",
+    "control_name": "Tokenisation / de-tokenisation request logging",
+    "description": "Every tokenisation and de-tokenisation request is logged by the card network and retrievable on demand.",
+    "owner_function": "F19",
+    "linked_kci": "K-039"
+  },
+  {
+    "control_id": "C-040",
+    "control_name": "Token requestor PAN non-storage attestation",
+    "description": "Token requestors are contractually barred from storing PAN or any other card detail, verified by attestation and scan.",
+    "owner_function": "F15",
+    "linked_kci": "K-040"
+  },
+  {
+    "control_id": "C-041",
+    "control_name": "Token requestor certification before go-live",
+    "description": "Card network certifies token requestor systems, app security, authorised-access features, onboarding, provisioning, storage and transaction processing.",
+    "owner_function": "F19",
+    "linked_kci": "K-041"
+  },
+  {
+    "control_id": "C-042",
+    "control_name": "Payment-chain entity certification for tokenised processing",
+    "description": "Issuers, acquirers and service providers in the transaction chain are certified for changes made to process tokenised transactions.",
+    "owner_function": "F04",
+    "linked_kci": "K-042"
+  },
+  {
+    "control_id": "C-043",
+    "control_name": "Explicit AFA consent at card registration",
+    "description": "Card registration on a token requestor app requires explicit customer consent through AFA - never a pre-ticked or default selection.",
+    "owner_function": "F04",
+    "linked_kci": "K-043"
+  },
+  {
+    "control_id": "C-044",
+    "control_name": "Per-use-case token register / de-register option",
+    "description": "Customers can register or de-register a card for each use case (contactless, QR, in-app) independently.",
+    "owner_function": "F04",
+    "linked_kci": "K-044"
+  },
+  {
+    "control_id": "C-045",
+    "control_name": "Customer-set per-transaction and daily token limits",
+    "description": "Customers can set and modify per-transaction and daily limits for tokenised card transactions.",
+    "owner_function": "F04",
+    "linked_kci": "K-045"
+  },
+  {
+    "control_id": "C-046",
+    "control_name": "Velocity checks on tokenised transactions",
+    "description": "Daily / weekly / monthly velocity thresholds applied to tokenised card transactions by issuer and network.",
+    "owner_function": "F12",
+    "linked_kci": "K-046"
+  },
+  {
+    "control_id": "C-047",
+    "control_name": "Secure token and key storage on identified device",
+    "description": "Tokens and associated keys are stored in a secure element / TEE on the identified device after successful registration.",
+    "owner_function": "F09",
+    "linked_kci": "K-047"
+  },
+  {
+    "control_id": "C-048",
+    "control_name": "Lost-device reporting & immediate token de-activation",
+    "description": "Customers can report loss of an identified device through any channel; tokens and keys are de-activated immediately.",
+    "owner_function": "F07",
+    "linked_kci": "K-048"
+  },
+  {
+    "control_id": "C-049",
+    "control_name": "Dispute resolution for tokenised transactions",
+    "description": "A defined dispute-resolution process covers tokenised card transactions end to end.",
+    "owner_function": "F07",
+    "linked_kci": "K-049"
+  },
+  {
+    "control_id": "C-050",
+    "control_name": "Identified-device binding verification",
+    "description": "Each transaction request is verified to have originated from the registered identified device before authorisation.",
+    "owner_function": "F19",
+    "linked_kci": "K-050"
+  },
+  {
+    "control_id": "C-051",
+    "control_name": "Tokenisation anomaly monitoring & stakeholder alerting",
+    "description": "Monitoring detects malfunction, anomaly, suspicious behaviour or unauthorised activity in the tokenisation process and alerts all stakeholders.",
+    "owner_function": "F12",
+    "linked_kci": "K-051"
+  },
+  {
+    "control_id": "C-052",
+    "control_name": "Issuer risk-based token registration permission",
+    "description": "Issuer decides, on risk perception, which of its card ranges may be registered by a token requestor; rules reviewed periodically.",
+    "owner_function": "F04",
+    "linked_kci": "K-052"
+  },
+  {
+    "control_id": "C-053",
+    "control_name": "Annual CERT-In empanelled tokenisation system audit",
+    "description": "System and security audit of all entities involved in tokenisation, at least annually, by CERT-In empanelled auditors.",
+    "owner_function": "F17",
+    "linked_kci": "K-053"
+  },
+  {
+    "control_id": "C-054",
+    "control_name": "Tokenisation audit report submission to RBI",
+    "description": "Audit report, with auditor comments on deviations from Annex 1 and the compliance thereto, furnished to the Reserve Bank.",
+    "owner_function": "F11",
+    "linked_kci": "K-054"
+  },
+  {
+    "control_id": "C-055",
+    "control_name": "Monthly Annex 2 tokenisation return",
+    "description": "Annex 2 return on token requestors, use cases, cards registered and transaction volumes filed with CGM DPSS by the 10th of each month.",
+    "owner_function": "F11",
+    "linked_kci": "K-055"
+  },
+  {
+    "control_id": "C-056",
+    "control_name": "Zero customer charges for tokenisation",
+    "description": "No charge of any kind is recovered from the customer for availing the tokenisation service.",
+    "owner_function": "F16",
+    "linked_kci": "K-056"
   }
 ]

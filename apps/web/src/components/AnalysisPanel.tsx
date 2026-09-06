@@ -9,7 +9,7 @@ import VerificationBadge from "@/components/VerificationBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectItem } from "@/components/ui/select";
 import {
   api,
   CAN_PUBLISH,
@@ -177,17 +177,15 @@ export default function AnalysisPanel({
               size="sm"
               aria-label="Add an impacted department"
               value=""
+              placeholder="Add a department…"
               disabled={busy}
-              onChange={(e) =>
-                e.target.value && void run(() => api.addFunction(analysis.id, e.target.value))
-              }
+              onValueChange={(code) => code && void run(() => api.addFunction(analysis.id, code))}
               className="w-56"
             >
-              <option value="">Add a department…</option>
               {unlisted.map((f) => (
-                <option key={f.code} value={f.code}>
-                  {f.code} · {f.name}
-                </option>
+                <SelectItem key={f.code} value={f.code} code={f.code}>
+                  {f.name}
+                </SelectItem>
               ))}
             </Select>
           )}
@@ -270,14 +268,14 @@ export default function AnalysisPanel({
               <Select
                 size="sm"
                 value={newItem.owner}
-                onChange={(e) => setNewItem({ ...newItem, owner: e.target.value })}
-                className="mt-1 w-32"
+                onValueChange={(owner) => setNewItem({ ...newItem, owner })}
+                className="mt-1 w-56"
               >
-                <option value="">Unassigned</option>
+                <SelectItem value="">Unassigned</SelectItem>
                 {functions.map((f) => (
-                  <option key={f.code} value={f.code}>
-                    {f.code}
-                  </option>
+                  <SelectItem key={f.code} value={f.code} code={f.code}>
+                    {f.name}
+                  </SelectItem>
                 ))}
               </Select>
             </label>
@@ -343,20 +341,18 @@ export default function AnalysisPanel({
                         aria-label={`Owner for: ${item.description.slice(0, 40)}`}
                         value={item.owner_function_code ?? ""}
                         disabled={busy}
-                        onChange={(e) =>
+                        onValueChange={(code) =>
                           void run(() =>
-                            api.editActionItem(item.id, {
-                              owner_function_code: e.target.value || null,
-                            }),
+                            api.editActionItem(item.id, { owner_function_code: code || null }),
                           )
                         }
-                        className="w-24"
+                        className="w-56"
                       >
-                        <option value="">—</option>
+                        <SelectItem value="">— Unassigned</SelectItem>
                         {functions.map((f) => (
-                          <option key={f.code} value={f.code}>
-                            {f.code}
-                          </option>
+                          <SelectItem key={f.code} value={f.code} code={f.code}>
+                            {f.name}
+                          </SelectItem>
                         ))}
                       </Select>
                     ) : item.owner_function_code ? (
@@ -377,19 +373,17 @@ export default function AnalysisPanel({
                         aria-label={`Priority for: ${item.description.slice(0, 40)}`}
                         value={item.priority}
                         disabled={busy}
-                        onChange={(e) =>
+                        onValueChange={(priority) =>
                           void run(() =>
-                            api.editActionItem(item.id, {
-                              priority: e.target.value as PriorityName,
-                            }),
+                            api.editActionItem(item.id, { priority: priority as PriorityName }),
                           )
                         }
                         className="w-28"
                       >
                         {(["LOW", "MEDIUM", "HIGH"] as PriorityName[]).map((p) => (
-                          <option key={p} value={p}>
+                          <SelectItem key={p} value={p}>
                             {p}
-                          </option>
+                          </SelectItem>
                         ))}
                       </Select>
                     ) : (

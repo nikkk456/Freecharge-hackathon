@@ -16,6 +16,11 @@ class PageSpanOut(BaseModel):
     # Where this page's text came from: the PDF's own text layer, OCR, or nothing
     # readable at all. Shown in the UI so a reviewer knows which pages were machine-read.
     source: Literal["text_layer", "ocr", "empty"] = "text_layer"
+    # Characters dropped because the PDF's font could not encode them (see
+    # `parser.drop_unreadable_text`). Defaults to 0 so page maps stored before this
+    # existed still validate. Shown in the UI: text we removed is text the reviewer
+    # is not being shown, and they must be told rather than left to wonder.
+    unreadable_chars: int = 0
 
 
 class CircularSummary(BaseModel):

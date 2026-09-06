@@ -55,6 +55,7 @@ class PageText:
     page: int  # 1-based
     text: str
     source: TextSource
+    unreadable_chars: int = 0  # characters removed because the font could not be decoded
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ class PageSpan:
     char_start: int
     char_end: int
     source: TextSource
+    unreadable_chars: int = 0
 
     def as_dict(self) -> dict:
         return {
@@ -70,6 +72,7 @@ class PageSpan:
             "char_start": self.char_start,
             "char_end": self.char_end,
             "source": self.source,
+            "unreadable_chars": self.unreadable_chars,
         }
 
 
@@ -88,6 +91,10 @@ class ParsedPdf:
     @property
     def ocr_page_count(self) -> int:
         return sum(1 for p in self.pages if p.source == "ocr")
+
+    @property
+    def unreadable_char_count(self) -> int:
+        return sum(p.unreadable_chars for p in self.pages)
 
 
 # --------------------------------------------------------------------------
@@ -126,6 +133,98 @@ def clean_page_text(text: str) -> str:
     text = _TRAILING_WS.sub("", text)
     text = _MANY_BLANK_LINES.sub("\n\n\n", text)
     return text.strip()
+
+
+# --------------------------------------------------------------------------
+# Devanagari, and text the PDF's own font could not spell
+# --------------------------------------------------------------------------
+# RBI circulars carry a bilingual letterhead and footer, and the Devanagari in them
+# does not survive the text layer. From a real upload (CO.DPSS.POLC.No.S-469/
+# 02-14-003/2021-22, "Tokenisation - Card Transactions") it arrives broken two ways
+# at once:
+#
+#   "क��ीय कायार्लय"   is केंद्रीय कार्यालय — the conjuncts have no entry in the font's
+#                        ToUnicode CMap at all, so pdfminer emits U+FFFD for them
+#   "िनपटान"            is निपटान — the vowel sign stored where it is *drawn*, before
+#                        its consonant, instead of after it as Unicode requires
+#
+# Reversing the second is a mechanical transformation and tempting; around a U+FFFD
+# hole it yields a different, valid-*looking* Hindi word, which is the failure this
+# system exists to prevent. A visible misspelling is a warning; a plausible wrong word
+# is a lie. So no Devanagari is decoded, repaired or guessed at — it is removed, and
+# the extracted text is the document's English.
+#
+# Nothing of substance is lost: RBI writes the obligations in English and repeats the
+# Hindi letterhead in English on the next line ("Department of Payment and Settlement
+# Systems, Central Office, 14th Floor..."). Latin fragments embedded in a Hindi run
+# are kept — "फोनTel:" becomes "Tel:", "ई-मेलe-mail" becomes "e-mail" — because those
+# are English and they are correct.
+#
+# Only Devanagari is targeted. ₹ and accented Latin are English-document characters and
+# stay: a rupee figure is very often the obligation itself.
+
+_DEVANAGARI = re.compile(r"[\u0900-\u097f\u1cd0-\u1cff\ua8e0-\ua8ff]+")
+_LATIN_LETTER = re.compile(r"[A-Za-z]")
+
+_REPLACEMENT_CHAR = "\ufffd"
+# pdfminer's other fallback for the same failure: a glyph with no Unicode mapping
+# comes through as its raw font index.
+_CID_FALLBACK = re.compile(r"\(cid:\d+\)")
+
+
+def is_unreadable_word(word: str) -> bool:
+    """Did the font fail to tell us what this word says?"""
+    return _REPLACEMENT_CHAR in word or bool(_CID_FALLBACK.search(word))
+
+
+def _english_only(word: str) -> str:
+    """Strip the Devanagari out of one word, keeping any Latin welded to it."""
+    kept = _DEVANAGARI.sub("", word)
+    # "ई-मेल" + "e-mail" extracts as one token; removing the Hindi leaves the hyphen
+    # that joined them dangling at the front.
+    return kept.lstrip("-") if _LATIN_LETTER.search(kept) else kept
+
+
+def drop_unreadable_text(text: str) -> tuple[str, int]:
+    """Remove Devanagari and words the font could not encode. Returns (text, chars gone).
+
+    Words the font could not encode go **whole**, not character by character: deleting
+    only the two bad characters from "क��ीय" would leave "कीय", a word the document does
+    not contain, spliced together from the halves either side of the hole.
+
+    A line is dropped outright once nothing with a Latin letter survives it — the Hindi
+    address block leaves ", , 14, ,, -" behind, and a model quoting that fragment would
+    produce a citation that verifies perfectly against text carrying no meaning at all.
+    Only lines this function actually changed are tested that way, so a genuinely
+    numeric English line ("400001") is never at risk.
+
+    Lines with no Devanagari and no undecodable word pass through byte for byte, so an
+    ordinary English page is unchanged.
+    """
+    kept: list[str] = []
+    removed = 0
+
+    for line in text.split("\n"):
+        words = line.split()
+        if not words:
+            kept.append(line)
+            continue
+
+        unreadable = [word for word in words if is_unreadable_word(word)]
+        if not unreadable and not _DEVANAGARI.search(line):
+            kept.append(line)  # untouched, original spacing and all
+            continue
+
+        rebuilt = " ".join(
+            filter(None, (_english_only(word) for word in words if word not in unreadable))
+        )
+        removed += len(line.strip()) - len(rebuilt)
+        if _LATIN_LETTER.search(rebuilt):
+            kept.append(rebuilt)
+        else:
+            removed += len(rebuilt)  # the whole line goes; it is not evidence of anything
+
+    return _MANY_BLANK_LINES.sub("\n\n\n", "\n".join(kept)).strip(), removed
 
 
 def strip_page_number(text: str, page: int) -> str:
@@ -205,17 +304,25 @@ def extract_text_layer(data: bytes) -> list[PageText]:
             if not pdf.pages:
                 raise PdfParseError("This PDF has no pages.")
             for index, page in enumerate(pdf.pages, start=1):
+                unreadable = 0
                 try:
-                    text = strip_page_number(
-                        clean_page_text(page.extract_text() or ""), index
+                    cleaned, unreadable = drop_unreadable_text(
+                        clean_page_text(page.extract_text() or "")
                     )
+                    text = strip_page_number(cleaned, index)
                 except Exception as exc:  # noqa: BLE001 — one bad page must not kill the file
                     log.warning("page_text_failed", page=index, error=str(exc))
                     text = ""
+                if unreadable:
+                    log.info("page_text_undecodable", page=index, chars=unreadable)
                 source: TextSource = (
                     "text_layer" if len(text) >= settings.ocr_min_page_chars else "empty"
                 )
-                pages.append(PageText(page=index, text=text, source=source))
+                pages.append(
+                    PageText(
+                        page=index, text=text, source=source, unreadable_chars=unreadable
+                    )
+                )
     except PdfParseError:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -277,6 +384,7 @@ def assemble(pages: list[PageText]) -> ParsedPdf:
                 char_start=cursor,
                 char_end=cursor + len(page.text),
                 source=page.source,
+                unreadable_chars=page.unreadable_chars,
             )
         )
         cursor += len(page.text)

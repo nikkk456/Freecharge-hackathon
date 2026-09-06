@@ -17,6 +17,8 @@ from app.modules.circulars.parser import (
     _as_parse_error,
     assemble,
     clean_page_text,
+    drop_unreadable_text,
+    is_unreadable_word,
     page_for_offset,
     pages_needing_ocr,
     sniff_issued_date,
@@ -44,6 +46,70 @@ def test_clean_strips_trailing_spaces_and_collapses_blank_runs():
 def test_clean_trims_surrounding_whitespace_and_drops_nul_bytes():
     assert clean_page_text("\n\n  hello  \n\n") == "hello"
     assert clean_page_text("he\x00llo") == "hello"
+
+
+# ---------------------------------------------------------------------------
+# Devanagari, and text the font could not spell
+# ---------------------------------------------------------------------------
+# The strings below are the real thing, copied out of the text layer of RBI circular
+# CO.DPSS.POLC.No.S-469/02-14-003/2021-22. Written inline rather than constructed,
+# because the bug is *in the exact bytes* and a reconstruction would quietly test
+# something else.
+def test_hindi_is_removed_rather_than_decoded():
+    # "िनपटान" is निपटान with the vowel sign stored where it is drawn. Reversing that
+    # is mechanical and would be wrong: no Devanagari is repaired, it simply goes.
+    assert drop_unreadable_text("The bank भुगतान और िनपटान shall comply")[0] == (
+        "The bank shall comply"
+    )
+
+
+def test_english_welded_to_a_hindi_word_is_kept():
+    # The footer extracts as single tokens: the Latin half is correct English and the
+    # only readable thing on the line, so throwing the whole token away loses real text.
+    assert drop_unreadable_text("फोनTel: (91-22) 2264 4995")[0] == "Tel: (91-22) 2264 4995"
+    # The hyphen belonged to "ई-मेल", not to "e-mail", and is left dangling by the cut.
+    assert drop_unreadable_text("ई-मेलe-mail : cgmdpssco@rbi.org.in")[0] == (
+        "e-mail : cgmdpssco@rbi.org.in"
+    )
+
+
+def test_a_word_holed_by_the_font_is_dropped_whole_not_patched():
+    # "क\ufffd\ufffdीय" is केंद्रीय with two conjuncts the font cannot map. Deleting only the
+    # U+FFFDs would leave "कीय" — a word the circular does not contain.
+    assert is_unreadable_word("क\ufffd\ufffdीय")
+    assert drop_unreadable_text("Central Office क\ufffd\ufffdीय today")[0] == (
+        "Central Office today"
+    )
+
+
+def test_pdfminers_other_undecodable_marker_is_caught_too():
+    assert is_unreadable_word("(cid:129)")
+    assert is_unreadable_word("word(cid:7)break")
+    assert drop_unreadable_text("keep this (cid:7) line")[0] == "keep this line"
+
+
+def test_a_line_left_with_no_english_is_dropped_entirely():
+    # The Hindi address block leaves ", , 14, ,, -" behind. A model quoting that would
+    # produce a citation that verifies perfectly against text with no meaning in it.
+    line = "क\ufffd\ufffdीय कायार्लय, 14वीमंिजल, मम्ुबई - 400001"
+    assert drop_unreadable_text(line) == ("", len(line))
+
+
+def test_a_numeric_english_line_is_never_at_risk():
+    # The same page ends with the pincode on its own. It contains no Devanagari, so it
+    # is never rewritten and the no-English rule never sees it.
+    assert drop_unreadable_text("400001") == ("400001", 0)
+
+
+def test_a_clean_page_is_returned_byte_for_byte():
+    page = "Para 2.  The bank shall\n  ensure that\n\nagents comply."
+    assert drop_unreadable_text(page) == (page, 0)
+
+
+def test_the_rupee_sign_is_not_collateral_damage():
+    # "English only" targets Devanagari, not non-ASCII: a rupee figure is very often
+    # the obligation itself.
+    assert drop_unreadable_text("a penalty of ₹1,00,000")[0] == "a penalty of ₹1,00,000"
 
 
 # ---------------------------------------------------------------------------

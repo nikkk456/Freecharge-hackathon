@@ -26,6 +26,78 @@ const NAV = [
  *  it here means changing the calc() there. */
 const WIDE_ROUTE = /^\/circulars\/[^/]+$/;
 
+/** First letters of the first two words — "Ravi Reviewer" → "RR". */
+function initialsOf(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
+
+/**
+ * Who is signed in, and what they are allowed to do.
+ *
+ * The role was a filled pill sitting beside the name, which made it read as a second
+ * control in a row of controls — you could believe it was a toggle for switching role.
+ * It is not interactive and never can be: a reviewer cannot promote themselves, and the
+ * whole approval chain rests on that.
+ *
+ * So it is written as a caption under the name instead — typographic hierarchy rather
+ * than a chip. Identity on top, authority beneath it, the shape every account menu in
+ * the world uses, and nothing in it looks pressable except the one thing that is. The
+ * role is spelled out in words with no colour carrying meaning, so it survives both
+ * themes and does not borrow the status palette, which is reserved for health.
+ *
+ * Geometry and surface deliberately mirror `ThemeToggle` — same `rounded-md`, same
+ * `bg-muted/60` tray, same `size-6` inset button — because they sit side by side and
+ * two neighbours in different shapes read as an accident.
+ */
+function UserChip({
+  user,
+  onSignOut,
+}: {
+  user: { full_name: string; role: string };
+  onSignOut: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/60 p-0.5">
+      <span
+        aria-hidden
+        className="flex size-6 shrink-0 items-center justify-center rounded bg-brand-surface-strong text-2xs font-semibold leading-none text-brand"
+      >
+        {initialsOf(user.full_name)}
+      </span>
+
+      <div className="hidden min-w-0 flex-col justify-center pr-1 leading-none sm:flex">
+        <span className="truncate text-xs font-medium text-foreground">{user.full_name}</span>
+        <span className="mt-0.5 truncate text-[0.625rem] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          {user.role}
+        </span>
+      </div>
+
+      <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
+
+      <button
+        type="button"
+        onClick={onSignOut}
+        title="Sign out"
+        aria-label="Sign out"
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors",
+          "hover:bg-card hover:text-destructive hover:shadow-sm",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+        )}
+      >
+        <LogOut className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -99,54 +171,7 @@ function Shell() {
 
             <div className="flex shrink-0 items-center gap-3">
               <ThemeToggle />
-              {/* {user && (
-              <div className="flex items-center gap-2.5 text-xs">
-                <span className="hidden items-center gap-1.5 text-muted-foreground sm:flex">
-                  <span className="font-medium text-foreground">
-                    {user.full_name}
-                  </span>
-                  <span className="rounded bg-brand-surface px-1.5 py-0.5 font-medium capitalize text-brand">
-                    {user.role}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  onClick={signOut}
-                  className="rounded-sm text-muted-foreground underline decoration-border underline-offset-2 transition-colors hover:text-brand hover:decoration-brand"
-                >
-                  Sign out
-                </button>
-              </div>
-            )} */}
-              {user && (
-                <div className="flex items-center gap-2 rounded-full border border-border bg-muted/60 p-1 pl-3 text-xs shadow-sm">
-                  {/* User Profile Info */}
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="font-medium text-muted-foreground">
-                      {user.full_name}
-                    </span>
-
-                    {/* Role Badge - Tinted to match brand purple theme */}
-                    <span className="rounded-full bg-purple-100/70 px-2 py-0.5 text-[11px] font-semibold text-purple-800 capitalize">
-                      {user.role}
-                    </span>
-                  </div>
-
-                  {/* Subtle Divider */}
-                  <div className="hidden sm:inline h-4 w-[1px] bg-slate-200 mx-0.5" />
-
-                  {/* Integrated Sign Out Button */}
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    title="Sign out"
-                    aria-label="Sign out"
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-brand-surface hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
+              {user && <UserChip user={user} onSignOut={signOut} />}
             </div>
           </div>
         </header>
