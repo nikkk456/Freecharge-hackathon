@@ -260,3 +260,176 @@
     }
   }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   MOTION LAYER · the animated walkthrough on the home page
+
+   One vocabulary shared by every scene, so six different animations still read as
+   one product moving rather than six demos stitched together. Two beats: things
+   ENTER (rise, pop, draw), and things TRAVEL (sweep, scan, trace, token). Nothing
+   spins, nothing bounces — this is a bank's compliance tool and the motion is
+   there to explain a mechanism, not to decorate one.
+
+   THE INVERSION THAT MAKES THIS ACCESSIBLE: every keyframe below declares only a
+   `from`. The `to` is the element's own computed style, so the finished frame is
+   simply what the CSS already says — which means `animation: none` under
+   `prefers-reduced-motion` lands on the finished frame. Written the usual way
+   round (`to { opacity: 1 }` over a base of `opacity: 0`) the identical guard
+   would leave the page permanently invisible to exactly the people who asked for
+   less motion. Delays are passed inline per element; durations live here.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* Entrance decelerates hard — an element arrives and settles. Movement is
+       symmetric — a token crossing a track has no reason to arrive faster than it
+       left. */
+    --ease-entrance: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Entrances ─────────────────────────────────────────────────────────── */
+  @keyframes hm-rise {
+    from { opacity: 0; transform: translateY(12px); }
+  }
+  @keyframes hm-rise-sm {
+    from { opacity: 0; transform: translateY(6px); }
+  }
+  @keyframes hm-fall {
+    from { opacity: 0; transform: translateY(-8px); }
+  }
+  @keyframes hm-fade {
+    from { opacity: 0; }
+  }
+  @keyframes hm-slide {
+    from { opacity: 0; transform: translateX(-12px); }
+  }
+  @keyframes hm-slide-right {
+    from { opacity: 0; transform: translateX(12px); }
+  }
+  @keyframes hm-pop {
+    0% { opacity: 0; transform: scale(0.8); }
+    64% { opacity: 1; transform: scale(1.04); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .a-rise { animation: hm-rise 0.55s var(--ease-entrance) both; }
+  .a-rise-sm { animation: hm-rise-sm 0.4s var(--ease-entrance) both; }
+  .a-fall { animation: hm-fall 0.45s var(--ease-entrance) both; }
+  .a-fade { animation: hm-fade 0.5s ease-out both; }
+  .a-slide { animation: hm-slide 0.5s var(--ease-entrance) both; }
+  .a-slide-right { animation: hm-slide-right 0.5s var(--ease-entrance) both; }
+  .a-pop { animation: hm-pop 0.5s var(--ease-entrance) both; }
+
+  /* A rubber stamp landing on paper: overshoots in scale, settles off-square. */
+  @keyframes hm-stamp {
+    0% { opacity: 0; transform: scale(1.9) rotate(-16deg); }
+    55% { opacity: 1; transform: scale(0.94) rotate(-7deg); }
+    100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+  }
+  .a-stamp { animation: hm-stamp 0.5s var(--ease-entrance) both; }
+
+  /* ── Things that draw themselves ───────────────────────────────────────── */
+  @keyframes hm-draw-x { from { transform: scaleX(0); } }
+  @keyframes hm-draw-y { from { transform: scaleY(0); } }
+  .a-draw-x { transform-origin: left center; animation: hm-draw-x 0.5s var(--ease-move) both; }
+  .a-draw-y { transform-origin: center top; animation: hm-draw-y 0.5s var(--ease-move) both; }
+
+  /* An SVG connector drawing from its start point. `--len` must be >= the path's
+     real length; overshooting only delays the first visible pixel slightly. */
+  @keyframes hm-trace { from { stroke-dashoffset: var(--len, 240); } }
+  .a-trace {
+    stroke-dasharray: var(--len, 240);
+    stroke-dashoffset: 0;
+    animation: hm-trace 0.85s var(--ease-move) both;
+  }
+
+  /* A bar filling to its width — used for a progress meter and for a line of text
+     writing itself. Animating background-size rather than width keeps text on one
+     line while the mark sweeps across it. */
+  @keyframes hm-fill { from { width: 0; } }
+  .a-fill { animation: hm-fill 0.7s var(--ease-move) both; }
+
+  @keyframes hm-sweep { from { background-size: 0% 100%; } }
+  .a-sweep {
+    background-image: linear-gradient(var(--sweep, var(--highlight)), var(--sweep, var(--highlight)));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    animation: hm-sweep 0.7s var(--ease-entrance) both;
+  }
+
+  /* ── Things that travel ────────────────────────────────────────────────── */
+  /* The OCR read head crossing a page. Distance is the page's height, passed in. */
+  @keyframes hm-scan {
+    0% { transform: translateY(0); opacity: 0; }
+    12% { opacity: 1; }
+    88% { opacity: 1; }
+    100% { transform: translateY(var(--scan, 120px)); opacity: 0; }
+  }
+  .a-scan { animation: hm-scan 1.5s var(--ease-move) both; }
+
+  /* A work item crossing the state machine. `--to` is the distance to its stop. */
+  @keyframes hm-token { from { transform: translateX(var(--from, 0)); } }
+  .a-token { animation: hm-token 0.6s var(--ease-move) both; }
+
+  /* Ambient loops. Slow and small on purpose: at this amplitude the hero reads as
+     alive, and anything larger reads as a screensaver. */
+  /* translateY rather than translate3d: the 3D form forces each element onto its own
+     compositor layer, and four decorative cards drifting 7px do not need one. */
+  @keyframes hm-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  .a-float { animation: hm-float 7s ease-in-out infinite; }
+
+  @keyframes hm-travel {
+    0% { transform: translateY(0); opacity: 0; }
+    10%, 80% { opacity: 1; }
+    100% { transform: translateY(var(--travel, 100px)); opacity: 0; }
+  }
+  .a-travel { animation: hm-travel 3.4s var(--ease-move) infinite; }
+
+  @keyframes hm-breathe {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.75; }
+  }
+  .a-breathe { animation: hm-breathe 4s ease-in-out infinite; }
+
+  /* A held focus ring, so "this is the beat you are watching" survives after the
+     entrance has finished playing. */
+  @keyframes hm-halo {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--brand) / 0.28); }
+    50% { box-shadow: 0 0 0 7px hsl(var(--brand) / 0); }
+  }
+  .a-halo { animation: hm-halo 2.4s ease-out infinite; }
+
+  /* ── Scroll reveal ─────────────────────────────────────────────────────── */
+  /* Transition-driven rather than animation-driven, because the finished state has
+     to be reachable by toggling one attribute from JS. `useReveal` sets
+     data-shown="true" immediately when IntersectionObserver is unavailable, so a
+     failure here can never leave content permanently hidden. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.7s var(--ease-entrance),
+      transform 0.7s var(--ease-entrance);
+  }
+  .reveal[data-shown="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .a-rise, .a-rise-sm, .a-fall, .a-fade, .a-slide, .a-slide-right, .a-pop,
+    .a-stamp, .a-draw-x, .a-draw-y, .a-trace, .a-fill, .a-sweep, .a-scan,
+    .a-token, .a-float, .a-travel, .a-breathe, .a-halo {
+      animation: none !important;
+    }
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}

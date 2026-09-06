@@ -1,436 +1,337 @@
-import { Building2, FileText, ListChecks, Search, ShieldCheck, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import ControlDetailDialog from "@/components/ControlDetailDialog";
-import EmptyState from "@/components/EmptyState";
-import { StatusGlyph } from "@/components/StatusGlyph";
-import StatusChip, { statusColor, statusLabel, statusTone } from "@/components/StatusChip";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { api, type ControlOut, type KciOut, type LibraryStats, type RagStatus } from "@/lib/api";
+import {
+  Building2,
+  FileSearch,
+  Gavel,
+  Layers,
+  ListChecks,
+  Lock,
+  Radio,
+  ScrollText,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import Hero from "@/components/home/Hero";
+import PipelineTheatre from "@/components/home/PipelineTheatre";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useReveal } from "@/lib/useReveal";
 import { cn } from "@/lib/utils";
 
-type Load = "loading" | "ok" | "error";
-type Filter = "all" | RagStatus;
-
-const SETUP_COMMANDS = [
-  "docker compose up -d db redis minio",
-  "uvicorn app.main:app --reload",
-  "python -m scripts.seed",
-];
-
-const ORDER: RagStatus[] = ["green", "amber", "red"];
-
-/** Rank worst-first, so the attention list leads with what is actually failing. */
-const SEVERITY: Record<RagStatus, number> = { red: 0, amber: 1, green: 2 };
-
-// Stage 0 screen: proves the whole stack is live end to end — browser -> API ->
-// Postgres -> seeded foundation data. Everything shown here is read from the DB;
-// nothing is hard-coded in the frontend.
+/**
+ * The home page: what this thing does, in the order it does it.
+ *
+ * It carries no counts. Every figure the foundation data could offer — controls,
+ * indicators, departments — is seeded demo data, and a landing page whose first
+ * impression is a number that is not real is worse than one with no numbers at all.
+ * What it does show live is a single honest fact: whether the backend is answering.
+ * That one is checkable, which is the whole standard this product holds itself to.
+ *
+ * The counts still exist, and still matter — they moved to the Foundation page,
+ * where they sit next to the library rows they are counting and can be verified by
+ * scrolling.
+ */
 export default function Home() {
-  const [state, setState] = useState<Load>("loading");
-  const [error, setError] = useState("");
+  // The only page in the app that renders for a signed-out visitor, so it is also the
+  // only one that has to know which of the two it is talking to.
+  const { user } = useAuth();
+
+  return (
+    <div className="pb-8">
+      <Hero authed={!!user} status={<BackendStatus />} />
+
+      <section id="walkthrough" className="scroll-mt-20 pt-12 sm:pt-16">
+        <SectionHead
+          eyebrow="The process"
+          title="One document, six pairs of hands"
+          lede="Nothing here is a black box handing back an answer. Each stage produces something the next stage can check, and every stage refuses to do the one thing that would make it untrustworthy."
+        />
+        <div className="mt-7">
+          <PipelineTheatre />
+        </div>
+      </section>
+
+      <Principles />
+      <StartHere />
+      <Limits />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function SectionHead({
+  eyebrow,
+  title,
+  lede,
+}: {
+  eyebrow: string;
+  title: string;
+  lede?: string;
+}) {
+  const [ref, shown] = useReveal<HTMLDivElement>();
+  return (
+    <div ref={ref} className="max-w-2xl">
+      <p
+        data-shown={shown}
+        className="reveal text-[10px] font-semibold uppercase tracking-[0.18em] text-brand"
+      >
+        {eyebrow}
+      </p>
+      <h2
+        data-shown={shown}
+        style={{ transitionDelay: "70ms" }}
+        className="reveal mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]"
+      >
+        {title}
+      </h2>
+      {lede && (
+        <p
+          data-shown={shown}
+          style={{ transitionDelay: "140ms" }}
+          className="reveal mt-2.5 text-[14px] leading-relaxed text-muted-foreground"
+        >
+          {lede}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Is the backend answering?
+ *
+ * The only live figure on this page, and the reason it is here rather than a count:
+ * a reader can confirm it themselves in one refresh. When it is down the message
+ * says what still works, because that is true — the workflow is designed so the
+ * model, and even the API, can be missing without the human being stuck.
+ */
+function BackendStatus() {
+  const [state, setState] = useState<"loading" | "up" | "down">("loading");
   const [service, setService] = useState("");
-  const [stats, setStats] = useState<LibraryStats | null>(null);
-  const [controls, setControls] = useState<ControlOut[]>([]);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
-  // Which control the reader has opened. Held by id, not by object, so the card
-  // re-reads from `controls` and a refresh cannot leave a stale record on screen.
-  const [openControl, setOpenControl] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.health(), api.stats(), api.controls()])
-      .then(([health, s, c]) => {
+    let live = true;
+    api
+      .health()
+      .then((health) => {
+        if (!live) return;
         setService(health.service);
-        setStats(s);
-        setControls(c);
-        setState("ok");
+        setState("up");
       })
-      .catch((e: Error) => {
-        setError(e.message);
-        setState("error");
-      });
+      .catch(() => live && setState("down"));
+    return () => {
+      live = false;
+    };
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return controls.filter((c) => {
-      if (filter !== "all" && c.kcis[0]?.status !== filter) return false;
-      if (!q) return true;
-      return [c.code, c.name, c.description ?? "", c.owner_function?.name ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [controls, query, filter]);
-
-  // Everything currently off target, worst first — the actual work list.
-  const attention = useMemo(
-    () =>
-      controls
-        .flatMap((c) =>
-          c.kcis
-            .filter((k) => k.status !== "green")
-            .map((k) => ({ control: c, kci: k })),
-        )
-        .sort((a, b) => SEVERITY[a.kci.status] - SEVERITY[b.kci.status]),
-    [controls],
-  );
-
-  if (state === "loading") return <HomeSkeleton />;
-
-  if (state === "error") {
+  if (state === "loading") {
     return (
-      <div className="rounded-xl border border-status-critical/30 bg-card p-6">
-        <h1 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <StatusGlyph tone="critical" />
-          Backend not reachable
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Start the API and make sure Postgres is up, then reload.
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
-          {error}
-        </pre>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {SETUP_COMMANDS.map((cmd) => (
-            <code
-              key={cmd}
-              className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
-            >
-              {cmd}
-            </code>
-          ))}
-        </div>
-      </div>
+      <span className="inline-flex h-7 items-center gap-2 rounded-full border border-border bg-card/70 px-3 text-[11px] text-muted-foreground backdrop-blur">
+        <Radio className="size-3 animate-pulse" />
+        Checking the backend…
+      </span>
     );
   }
 
-  const mix = stats!.kci_status_mix;
-  const totalKci = ORDER.reduce((sum, s) => sum + (mix[s] ?? 0), 0);
-  const greenPct = totalKci ? Math.round(((mix.green ?? 0) / totalKci) * 100) : 0;
+  if (state === "down") {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-status-warning/40 bg-status-warning-surface px-3 py-1 text-[11px] text-foreground">
+        <TriangleAlert className="size-3 shrink-0 text-status-warning" />
+        Backend not answering — start the API and reload. Nothing in the workflow
+        depends on it being up to stay reviewable.
+      </span>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* ── Hero: identity, then the four counts as one continuous band ──── */}
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border bg-gradient-to-br from-brand-surface via-card to-brand-teal-surface px-6 py-6">
-          <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-brand">
-            Stage 0 · Foundation
-          </p>
-          <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-foreground">
-            Compliance foundation
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            The reference data every later stage reads from. Each control carries an owning
-            department and a key indicator, so the matrix can say{" "}
-            <em className="not-italic text-foreground">
-              “covered by C-006, owned by Collections &amp; Recovery, currently amber.”
-            </em>{" "}
-            Live from <span className="font-medium text-foreground">{service}</span>.
-          </p>
-        </div>
+    <span className="inline-flex items-center gap-2 rounded-full border border-status-good/30 bg-status-good-surface px-3 py-1 text-[11px] text-foreground">
+      <span aria-hidden className="relative flex size-2">
+        <span className="a-breathe absolute inline-flex size-full rounded-full bg-status-good" />
+        <span className="relative inline-flex size-2 rounded-full bg-status-good" />
+      </span>
+      Live — talking to <span className="font-mono text-[10.5px]">{service}</span>
+    </span>
+  );
+}
 
-        <dl className="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
-          <Stat icon={Building2} label="Functions" value={stats!.functions} hint="Departments" />
-          <Stat icon={ShieldCheck} label="Controls" value={stats!.controls} hint="In the library" />
-          <Stat icon={ListChecks} label="Indicators" value={stats!.kcis} hint="Measured monthly" />
-          <Stat icon={FileText} label="Circulars" value={stats!.circulars} hint="Ingested" />
-        </dl>
-      </section>
+/* ── The rules the product is actually built on ──────────────────────────── */
 
-      {/* ── Health beside the work it implies ────────────────────────────── */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                Control health today
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Where the {stats!.kcis} indicators sit against their targets.
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-semibold leading-none tabular-nums text-status-good">
-                {greenPct}%
-              </div>
-              <div className="mt-1 text-2xs uppercase tracking-wider text-muted-foreground">
-                on target
-              </div>
-            </div>
-          </div>
+const PRINCIPLES: { icon: LucideIcon; title: string; body: string }[] = [
+  {
+    icon: ShieldCheck,
+    title: "Citations are verified, never trusted",
+    body: "Every claim carries the exact span it came from, and code confirms that span really exists in the stored text. One that cannot be found is flagged — not quietly dropped, and never shown as fact.",
+  },
+  {
+    icon: Gavel,
+    title: "The human is enforced, not assumed",
+    body: "Nothing reaches published and no obligation reaches closed without a person deciding. That is a state machine, not a convention — so it holds even when everyone is in a hurry.",
+  },
+  {
+    icon: Sparkles,
+    title: "The AI never blocks the work",
+    body: "If the model is unavailable the screen says so plainly, and every action stays doable by hand. Slow work goes to a background worker so the interface keeps answering.",
+  },
+  {
+    icon: Lock,
+    title: "Nothing closes itself",
+    body: "Closure needs a second person and something to point at afterwards. The daily sweep raises reminders and moves nothing — a scheduled job advancing work would defeat the whole point.",
+  },
+  {
+    icon: Layers,
+    title: "A gap is a finding, not a failure",
+    body: "The matrix may never claim more coverage than it can name a control for. Reporting a risk as covered with nothing behind it hides work, which is the most damaging thing it could do.",
+  },
+  {
+    icon: ScrollText,
+    title: "Every decision leaves a row",
+    body: "AI suggestions and human decisions land in one hash-chained trail, each row's hash covering the row before it — so an altered row and a deleted row fail its check differently.",
+  },
+];
 
-          <div className="mt-5 flex h-2.5 gap-[3px] overflow-hidden rounded-full">
-            {ORDER.filter((s) => (mix[s] ?? 0) > 0).map((s) => (
-              <div
-                key={s}
-                className="transition-[width] duration-700 ease-out"
-                style={{
-                  width: `${((mix[s] ?? 0) / totalKci) * 100}%`,
-                  backgroundColor: statusColor(s),
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {ORDER.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setFilter(filter === s ? "all" : s)}
-                aria-pressed={filter === s}
-                className={cn(
-                  "rounded-lg border px-3 py-2.5 text-left transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card",
-                  filter === s
-                    ? "border-brand-line/50 bg-brand-surface"
-                    : "border-border hover:bg-muted",
-                )}
-              >
-                <span className="flex items-center gap-1.5">
-                  <StatusGlyph tone={statusTone(s)} square />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {statusLabel(s)}
-                  </span>
-                </span>
-                <span className="mt-1 block text-xl font-semibold tabular-nums text-foreground">
-                  {mix[s] ?? 0}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-2.5 text-2xs text-muted-foreground">
-            Tap a band to filter the library below.
-          </p>
-        </section>
-
-        <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card shadow-sm">
-          <header className="flex items-center gap-2 border-b border-border px-5 py-3">
-            <TriangleAlert aria-hidden className="size-4 text-status-warning" />
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">
-              Needs attention
-            </h2>
-            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-              {attention.length} off target
-            </span>
-          </header>
-          {attention.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-              Every indicator is on target.
-            </p>
-          ) : (
-            <ul className="scroll-slim max-h-[19rem] divide-y divide-border overflow-y-auto">
-              {attention.map(({ control, kci }) => (
-                <li key={kci.id} className="flex items-center gap-3 px-5 py-2.5">
-                  <StatusGlyph tone={statusTone(kci.status)} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{kci.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      <span className="font-mono">{control.code}</span> · {control.name}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                    {kci.current_value}
-                    <span className="mx-1 opacity-50">vs</span>
-                    <span className="text-foreground">{kci.target}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* ── The library, as scannable cards rather than a wall of rows ───── */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            Control library{" "}
-            <span className="text-sm font-normal tabular-nums text-muted-foreground">
-              {filtered.length} of {controls.length}
-            </span>
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">
-              {(["all", ...ORDER] as Filter[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFilter(f)}
-                  aria-pressed={filter === f}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                    filter === f
-                      ? "bg-card text-brand shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div className="relative w-56">
-              <Search
-                aria-hidden
-                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Filter controls…"
-                aria-label="Filter controls"
-                className="h-9 pl-8 text-xs"
-              />
-            </div>
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card">
-            <EmptyState
-              icon={Search}
-              title="No controls match"
-              description="Try a different search or clear the status filter."
-            />
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((c) => (
-              <ControlCard
-                key={c.id}
-                control={c}
-                kci={c.kcis[0]}
-                onOpen={() => setOpenControl(c.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <ControlDetailDialog
-        control={controls.find((c) => c.id === openControl) ?? null}
-        onClose={() => setOpenControl(null)}
+function Principles() {
+  const [ref, shown] = useReveal<HTMLDivElement>();
+  return (
+    <section className="pt-14 sm:pt-20">
+      <SectionHead
+        eyebrow="Non-negotiables"
+        title="Six rules that outrank every feature"
+        lede="Each of these is enforced somewhere specific in the code rather than promised in a document. Breaking any one of them silently would break the product's whole claim."
       />
-    </div>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: typeof Building2;
-  label: string;
-  value: number;
-  hint: string;
-}) {
-  return (
-    <div className="px-6 py-4">
-      <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Icon aria-hidden className="size-3.5 text-brand" />
-        {label}
-      </dt>
-      <dd className="mt-1.5 text-3xl font-semibold leading-none tracking-tight text-foreground">
-        {value.toLocaleString()}
-      </dd>
-      <dd className="mt-1.5 text-2xs text-muted-foreground">{hint}</dd>
-    </div>
-  );
-}
-
-/** One control, with its indicator's reading right on the face of the card — the
- *  fact that makes Stage 5's "covered by C-006, currently amber" trustworthy.
- *
- *  A button rather than an article: the card is the way into the full record, and the
- *  hover lift was already promising that. Only the first KCI fits here, so a control
- *  with three indicators reads the same as one with a single indicator until it is
- *  opened. */
-function ControlCard({
-  control,
-  kci,
-  onOpen,
-}: {
-  control: ControlOut;
-  kci: KciOut | undefined;
-  onOpen: () => void;
-}) {
-  const more = control.kcis.length - 1;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`Open the full record for ${control.code} ${control.name}`}
-      className={cn(
-        "group flex flex-col rounded-xl border bg-card p-4 text-left shadow-sm transition-all",
-        "hover:-translate-y-0.5 hover:border-brand-line/40 hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        kci?.status === "red" ? "border-status-critical/30" : "border-border",
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-2xs font-semibold text-muted-foreground">
-          {control.code}
-        </span>
-        {kci ? (
-          <StatusChip status={kci.status} />
-        ) : (
-          <span className="text-2xs text-muted-foreground">No KCI</span>
-        )}
-      </div>
-
-      <h3 className="mt-2.5 text-sm font-semibold leading-snug text-foreground">
-        {control.name}
-      </h3>
-      <p className="mt-1 line-clamp-2 flex-1 text-xs leading-relaxed text-muted-foreground">
-        {control.description}
-      </p>
-
-      <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-        {control.owner_function && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Building2 aria-hidden className="size-3 shrink-0" />
-            <span className="font-mono text-brand-teal">{control.owner_function.code}</span>
-            <span className="truncate">{control.owner_function.name}</span>
-          </p>
-        )}
-        {kci && (
-          <p className="flex items-baseline justify-between gap-2 text-xs">
-            <span className="truncate text-muted-foreground">{kci.name}</span>
-            <span className="shrink-0 font-mono tabular-nums text-foreground">
-              {kci.current_value}
-              <span className="mx-1 text-muted-foreground opacity-60">vs</span>
-              {kci.target}
+      <div ref={ref} className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {PRINCIPLES.map((rule, i) => (
+          <div
+            key={rule.title}
+            data-shown={shown}
+            style={{ transitionDelay: `${i * 70}ms` }}
+            className={cn(
+              "reveal group rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow",
+              "hover:border-brand-line/45 hover:shadow-md",
+            )}
+          >
+            <span className="grid size-8 place-items-center rounded-lg bg-brand-surface text-brand transition-colors group-hover:bg-brand group-hover:text-primary-foreground">
+              <rule.icon className="size-4" strokeWidth={2.1} />
             </span>
-          </p>
-        )}
-        {more > 0 && (
-          <p className="text-2xs text-muted-foreground">
-            +{more} more indicator{more === 1 ? "" : "s"}
-          </p>
-        )}
-      </div>
-    </button>
-  );
-}
-
-function HomeSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-[15.5rem] w-full rounded-xl" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Skeleton className="h-56 rounded-xl" />
-        <Skeleton className="h-56 rounded-xl" />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-44 rounded-xl" />
+            <h3 className="mt-3 text-[13.5px] font-semibold leading-snug text-foreground">
+              {rule.title}
+            </h3>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {rule.body}
+            </p>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
+  );
+}
+
+/* ── Where to go next ────────────────────────────────────────────────────── */
+
+const DESTINATIONS: { to: string; icon: LucideIcon; title: string; body: string }[] = [
+  {
+    to: "/circulars",
+    icon: FileSearch,
+    title: "Circulars",
+    body: "Upload a PDF and watch it through parsing, analysis and grounding.",
+  },
+  {
+    to: "/foundation",
+    icon: Building2,
+    title: "Foundation",
+    body: "The departments, controls and indicators every later stage reads from.",
+  },
+  {
+    to: "/tracker",
+    icon: ListChecks,
+    title: "Tracker",
+    body: "Obligations with an owner, a deadline, and a closure that needs evidence.",
+  },
+  {
+    to: "/audit",
+    icon: ScrollText,
+    title: "Audit",
+    body: "The hash-chained trail, and the check that walks it end to end.",
+  },
+];
+
+function StartHere() {
+  const [ref, shown] = useReveal<HTMLDivElement>();
+  return (
+    <section className="pt-14 sm:pt-20">
+      <SectionHead eyebrow="Start anywhere" title="Where you actually work" />
+      <div ref={ref} className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {DESTINATIONS.map((place, i) => (
+          <Link
+            key={place.to}
+            to={place.to}
+            data-shown={shown}
+            style={{ transitionDelay: `${i * 70}ms` }}
+            className={cn(
+              "reveal group flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-all",
+              "hover:-translate-y-0.5 hover:border-brand-line/45 hover:shadow-md",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <place.icon className="size-4 text-brand" strokeWidth={2.1} />
+              <span className="text-[13.5px] font-semibold text-foreground">{place.title}</span>
+              <span
+                aria-hidden
+                className="ml-auto text-brand opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                &rarr;
+              </span>
+            </span>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {place.body}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ── The parts we say out loud instead of hiding ─────────────────────────── */
+
+const LIMITS = [
+  "OCR can misread an italic serif line. The screen marks which pages were machine-read rather than pretending they are equivalent.",
+  "Devanagari is dropped, not decoded — the extracted text is the document's English. A repaired-looking Hindi word would be worse than a visible absence.",
+  "A PDF whose text layer exists but is garbage is treated as valid text. No heuristic for that was worth its false positives.",
+];
+
+function Limits() {
+  const [ref, shown] = useReveal<HTMLDivElement>();
+  return (
+    <section ref={ref} className="pt-14 sm:pt-20">
+      <div
+        data-shown={shown}
+        className="reveal rounded-xl border border-border bg-muted/40 p-5 sm:p-6"
+      >
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Said out loud
+        </h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-foreground">
+          A tool that exists to make claims checkable has no business hiding its own
+          limits. These are the three worth knowing before you trust an output.
+        </p>
+        <ul className="mt-4 grid gap-2.5 sm:grid-cols-3">
+          {LIMITS.map((limit, i) => (
+            <li
+              key={limit}
+              data-shown={shown}
+              style={{ transitionDelay: `${100 + i * 80}ms` }}
+              className="reveal border-l-2 border-brand-line pl-3 text-[12.5px] leading-relaxed text-muted-foreground"
+            >
+              {limit}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }

@@ -1,5 +1,6 @@
-import { ShieldCheck, LogOut } from "lucide-react";
-import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,12 +10,14 @@ import { cn } from "@/lib/utils";
 import Audit from "@/pages/Audit";
 import CircularDetail from "@/pages/CircularDetail";
 import Circulars from "@/pages/Circulars";
+import Foundation from "@/pages/Foundation";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Tracker from "@/pages/Tracker";
 
 const NAV = [
-  { to: "/", label: "Foundation", end: true },
+  { to: "/", label: "Home", end: true },
+  { to: "/foundation", label: "Foundation", end: false },
   { to: "/circulars", label: "Circulars", end: false },
   { to: "/tracker", label: "Tracker", end: false },
   { to: "/audit", label: "Audit", end: false },
@@ -25,6 +28,11 @@ const NAV = [
  *  computed against the header's `h-14`, so that height is load-bearing — changing
  *  it here means changing the calc() there. */
 const WIDE_ROUTE = /^\/circulars\/[^/]+$/;
+
+/** The home page is a walkthrough rather than a reading column: its stage sits beside
+ *  a rail, and at the 5xl the rest of the app uses, one of the two has to give. It
+ *  gets a little more room and nothing else changes. */
+const LANDING_ROUTE = /^\/$/;
 
 /** First letters of the first two words — "Ravi Reviewer" → "RR". */
 function initialsOf(name: string): string {
@@ -113,9 +121,14 @@ function Shell() {
   const { user, ready, signOut } = useAuth();
   const { pathname } = useLocation();
   const wide = WIDE_ROUTE.test(pathname);
+  const landing = LANDING_ROUTE.test(pathname);
 
-  // Everything behind a sign-in: an approval has to be attributable to a person, and
-  // half-authenticated states are how that guarantee quietly gets lost.
+  // The home page is the one public surface. Everything that reads or writes a
+  // circular, an analysis or an obligation is still behind the sign-in, because an
+  // approval has to be attributable to a person and half-authenticated states are how
+  // that guarantee quietly gets lost. The landing page touches none of that — it
+  // describes the product and pings /health, which is public anyway — so gating it
+  // bought no safety and cost every visitor the explanation of what they are looking at.
   if (!ready) {
     return (
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-10">
@@ -128,12 +141,13 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-background">
-      {user && (
+      {(user || landing) && (
         <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/75">
           <div
             className={cn(
               "mx-auto flex h-full items-center justify-between gap-4 px-6",
-              wide ? "max-w-[1800px]" : "max-w-5xl",
+              wide && "max-w-[1800px]",
+              !wide && (landing ? "max-w-6xl" : "max-w-5xl"),
             )}
           >
             <NavLink
@@ -171,7 +185,19 @@ function Shell() {
 
             <div className="flex shrink-0 items-center gap-3">
               <ThemeToggle />
-              {user && <UserChip user={user} onSignOut={signOut} />}
+              {user ? (
+                <UserChip user={user} onSignOut={signOut} />
+              ) : (
+                // No nav is rendered for a visitor, because every entry in it is
+                // gated — a row of links that all lead to the same login form reads
+                // as a broken menu rather than as a locked door.
+                <Button asChild size="sm">
+                  <Link to="/login">
+                    <LogIn className="size-3.5" />
+                    Sign in
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </header>
@@ -180,19 +206,30 @@ function Shell() {
       <main
         className={cn(
           "mx-auto w-full px-6 py-4",
-          wide ? "max-w-[1800px]" : "max-w-5xl py-8",
+          wide && "max-w-[1800px]",
+          !wide && (landing ? "max-w-6xl py-8" : "max-w-5xl py-8"),
         )}
       >
         {user ? (
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/foundation" element={<Foundation />} />
             <Route path="/circulars" element={<Circulars />} />
             <Route path="/circulars/:id" element={<CircularDetail />} />
             <Route path="/tracker" element={<Tracker />} />
             <Route path="/audit" element={<Audit />} />
+            {/* Someone who signs in from /login must not be left staring at a route
+                that no longer exists for them. */}
+            <Route path="/login" element={<Navigate to="/" replace />} />
           </Routes>
         ) : (
-          <Login />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            {/* Every other path — /login included — is the sign-in form, rendered in
+                place rather than redirected to, so the address the visitor asked for
+                survives and they can be returned to it later. */}
+            <Route path="*" element={<Login />} />
+          </Routes>
         )}
       </main>
     </div>
