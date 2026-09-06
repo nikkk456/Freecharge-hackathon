@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, LogOut } from "lucide-react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,52 +56,55 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/75">
-        <div
-          className={cn(
-            "mx-auto flex h-full items-center justify-between gap-4 px-6",
-            wide ? "max-w-[1800px]" : "max-w-5xl",
-          )}
-        >
-          <NavLink
-            to="/"
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-sm text-sm font-semibold tracking-tight text-foreground"
+      {user && (
+        <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/75">
+          <div
+            className={cn(
+              "mx-auto flex h-full items-center justify-between gap-4 px-6",
+              wide ? "max-w-[1800px]" : "max-w-5xl",
+            )}
           >
-            <span className="flex size-7 items-center justify-center rounded-md bg-brand text-primary-foreground">
-              <ShieldCheck className="size-[15px]" strokeWidth={2.4} />
-            </span>
-            <span className="hidden sm:inline">Compliance Advisory Copilot</span>
-            <span className="sm:hidden">CAC</span>
-          </NavLink>
+            <NavLink
+              to="/"
+              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-sm text-sm font-semibold tracking-tight text-foreground"
+            >
+              <span className="flex size-7 items-center justify-center rounded-md bg-brand text-primary-foreground">
+                <ShieldCheck className="size-[15px]" strokeWidth={2.4} />
+              </span>
+              <span className="hidden sm:inline">RegVisor</span>
+              <span className="sm:hidden">RV</span>
+            </NavLink>
 
-          {user && (
-            <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto text-sm">
-              {NAV.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    cn(
-                      "relative whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors",
-                      isActive
-                        ? "bg-brand-surface text-brand"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          )}
-
-          <div className="flex shrink-0 items-center gap-3">
-            <ThemeToggle />
             {user && (
+              <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto text-sm">
+                {NAV.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      cn(
+                        "relative whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors",
+                        isActive
+                          ? "bg-brand-surface text-brand"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+
+            <div className="flex shrink-0 items-center gap-3">
+              <ThemeToggle />
+              {/* {user && (
               <div className="flex items-center gap-2.5 text-xs">
                 <span className="hidden items-center gap-1.5 text-muted-foreground sm:flex">
-                  <span className="font-medium text-foreground">{user.full_name}</span>
+                  <span className="font-medium text-foreground">
+                    {user.full_name}
+                  </span>
                   <span className="rounded bg-brand-surface px-1.5 py-0.5 font-medium capitalize text-brand">
                     {user.role}
                   </span>
@@ -114,10 +117,40 @@ function Shell() {
                   Sign out
                 </button>
               </div>
-            )}
+            )} */}
+              {user && (
+                <div className="flex items-center gap-2 rounded-full border border-border bg-muted/60 p-1 pl-3 text-xs shadow-sm">
+                  {/* User Profile Info */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="font-medium text-muted-foreground">
+                      {user.full_name}
+                    </span>
+
+                    {/* Role Badge - Tinted to match brand purple theme */}
+                    <span className="rounded-full bg-purple-100/70 px-2 py-0.5 text-[11px] font-semibold text-purple-800 capitalize">
+                      {user.role}
+                    </span>
+                  </div>
+
+                  {/* Subtle Divider */}
+                  <div className="hidden sm:inline h-4 w-[1px] bg-slate-200 mx-0.5" />
+
+                  {/* Integrated Sign Out Button */}
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    title="Sign out"
+                    aria-label="Sign out"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-brand-surface hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main
         className={cn(
