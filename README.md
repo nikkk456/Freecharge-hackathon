@@ -94,6 +94,8 @@ Hackathon/
 Everything else — including OCR — installs via pip. No Tesseract, poppler or system
 libraries are required.
 
+**Windows (PowerShell)**
+
 ```powershell
 # 1. Environment. `.env` is gitignored; `.env.example` is committed.
 Copy-Item .env.example .env
@@ -116,7 +118,41 @@ Copy-Item .env.example .env
 npm install
 ```
 
-**Verify the setup** before running anything:
+**macOS / Linux (bash or zsh)**
+
+```bash
+# 1. Environment. `.env` is gitignored; `.env.example` is committed.
+cp .env.example .env
+#    Open .env and paste your key into the GEMINI_API_KEY= line.
+#    NEVER put a real key in .env.example — that file is tracked by git.
+
+# 2. Infrastructure (Postgres + pgvector, Redis, MinIO)
+docker compose up -d db redis minio minio-init
+
+# 3. Backend
+cd apps/api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"             # ~2 min: includes OCR models and LiteLLM
+python -m scripts.seed              # schema + demo users + 18/36/31 foundation rows
+
+# 4. Frontend
+cd ../web
+cp .env.example .env
+npm install
+
+# 5. One-time: make the launcher executable (only if git did not preserve the bit)
+cd ../.. && chmod +x dev.sh
+```
+
+On macOS, `python3` is the interpreter name — plain `python` is either missing or
+Apple's stub. Install a real one with `brew install python@3.12` (3.12 matches the
+Docker image; 3.11+ works). Docker Desktop and Node come from
+`brew install --cask docker` and `brew install node`.
+
+**Verify the setup** before running anything. Activate the venv first —
+`.\.venv\Scripts\Activate.ps1` on Windows, `source .venv/bin/activate` on macOS;
+on macOS use forward slashes (`cd apps/api`) for the paths below:
 
 ```powershell
 cd apps\api
@@ -146,6 +182,12 @@ python -c "from app.core.config import settings; print('key set:', bool(settings
 | `503 high demand` from Gemini | Free-tier spike. The client retries and falls back automatically; nothing to do |
 | `relation "..." does not exist` after a `git pull` | A model changed. Run `python -m scripts.seed --reset` |
 | PowerShell won't run `dev.ps1` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` (once) |
+| macOS: `permission denied: ./dev.sh` | `chmod +x dev.sh` (the executable bit is in git, but a zip download loses it) |
+| macOS: `zsh: command not found: python` | Use `python3`, or `brew install python@3.12`. Apple ships no `python` on PATH |
+| macOS: port 5432 already in use | A Homebrew Postgres is running: `brew services stop postgresql@16`. Or set `POSTGRES_PORT=5433` in `.env` — compose and the app both read it |
+| macOS: port 9000 already in use | Another tool has it (Portainer, php-fpm). Stop it, or change the MinIO port mapping in `docker-compose.yml` **and** `S3_ENDPOINT_URL` in `.env` |
+| macOS: `./dev.sh` opens no windows | Terminal automation was denied. Grant it in System Settings → Privacy & Security → Automation, or just use `./dev.sh --inline` |
+| macOS: `dev.sh: bad interpreter` | The file has CRLF line endings. Re-clone with git instead of unzipping a download, or run `dos2unix dev.sh` |
 | One failed request right after `seed --reset` | The running API still held connections to the schema you dropped. Retry — the pool reconnects |
 
 </details>
@@ -156,6 +198,12 @@ Four processes: **Docker infra, the API, the ARQ worker, and the web app.**
 
 ```powershell
 .\dev.ps1        # from the project root — opens all four
+```
+
+```bash
+./dev.sh          # macOS / Linux — same thing, one Terminal window per process
+./dev.sh --inline # everything in THIS terminal, prefixed logs, one Ctrl+C stops all
+./dev.sh --infra  # Docker only, then exit
 ```
 
 Then open **http://localhost:3000** and sign in as `reviewer@cac.dev` / `reviewer123`.
@@ -179,6 +227,21 @@ cd apps\api; .\.venv\Scripts\Activate.ps1; arq app.worker.settings.WorkerSetting
 
 # 4 — web
 cd apps\web; npm run dev
+```
+
+```bash
+# macOS / Linux
+# 1 — infra (leave running)
+docker compose up -d db redis minio minio-init
+
+# 2 — API
+cd apps/api && source .venv/bin/activate && uvicorn app.main:app --reload
+
+# 3 — worker (OCR + AI jobs)
+cd apps/api && source .venv/bin/activate && arq app.worker.settings.WorkerSettings
+
+# 4 — web
+cd apps/web && npm run dev
 ```
 
 </details>

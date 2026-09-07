@@ -281,7 +281,10 @@ Other things that matter here:
 ## 4. Running it
 
 ```powershell
-.\dev.ps1     # infra + API + ARQ worker + web, each in its own window
+.\dev.ps1     # Windows: infra + API + ARQ worker + web, each in its own window
+```
+```bash
+./dev.sh      # macOS/Linux: same four; --inline runs them in one terminal
 ```
 App http://localhost:3000 · API docs http://localhost:8000/docs · MinIO http://localhost:9001
 
@@ -290,7 +293,7 @@ upload sits at `PARSING` (the API's inline fallback only triggers when Redis its
 unreachable, not when the worker is merely absent).
 
 ```powershell
-cd apps\api
+cd apps\api    # macOS: cd apps/api; source .venv/bin/activate
 python -m scripts.seed              # upsert seed data (idempotent)
 python -m scripts.seed --reset      # DROP the schema and rebuild
 python -m pytest                    # 238 tests; DB-backed ones skip if Postgres is down
@@ -308,6 +311,11 @@ import is undeclared. Verify a real change with a clean venv, not with your own:
 ```powershell
 python -m venv $env:TEMP\clean; & $env:TEMP\clean\Scripts\pip install -e ".[dev]"
 & $env:TEMP\clean\Scripts\python -m pytest
+```
+```bash
+# macOS/Linux
+python3 -m venv /tmp/clean && /tmp/clean/bin/pip install -e ".[dev]"
+/tmp/clean/bin/python -m pytest
 ```
 
 **The worker does not hot-reload.** After changing anything it imports, restart it — the
